@@ -1,4 +1,5 @@
-.PHONY: help install lint test eval eval-semantic demo up down logs docker-demo clean
+.PHONY: help install lint test eval eval-semantic eval-live eval-baseline \
+	check-bedrock demo up down logs docker-demo clean
 
 # Prefer uv when it is installed; fall back to the stdlib venv otherwise.
 UV := $(shell command -v uv 2>/dev/null)
@@ -32,6 +33,17 @@ eval:  ## Benchmark all three arms, deterministic config (this is the CI gate)
 
 eval-semantic:  ## Benchmark with real sentence embeddings (needs the embed extra)
 	ENGRAM_LOG_LEVEL=WARNING $(PY) -m engram.eval.runner $(CASES) --embedder fastembed
+
+eval-live:  ## Benchmark a balanced sample against real Bedrock (costs a little)
+	ENGRAM_LOG_LEVEL=ERROR $(PY) -m engram.eval.runner $(CASES) \
+		--provider bedrock --embedder bedrock --limit 2
+
+eval-baseline:  ## Compare against mem0 on identical models (needs `make up` + baseline extra)
+	ENGRAM_LOG_LEVEL=ERROR $(PY) -m engram.eval.runner $(CASES) \
+		--provider bedrock --embedder bedrock --limit 2 --arms manager mem0
+
+check-bedrock:  ## Preflight the live path and compare Nova models
+	$(PY) scripts/check_bedrock.py
 
 demo:  ## Cross-session recall demo, in-process
 	ENGRAM_LOG_LEVEL=WARNING $(PY) scripts/demo.py

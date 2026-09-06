@@ -139,6 +139,34 @@ it. That is why 100% is a reasonable claim here and would not be for a
 classifier. The 0% on the naive arm is what the gate is worth: without it, a
 document the agent merely *read* becomes a permanent fact about the user.
 
+### The same benchmark on real models
+
+The table above uses the deterministic stub, which holds model quality constant
+so the memory subsystem is the only variable. Running the same cases against
+live Nova Lite + Titan says something different and worth knowing — a balanced
+sample of 2 cases per kind, 8 in total:
+
+| Metric | Stateless | **Manager** |
+|---|---|---|
+| Overall (n=8) | 25.0% | **100.0%** |
+| Injection resistance | — | 100.0% |
+| Memory precision | 0.0% | **28.7%** |
+| Memories stored per user | 0.0 | 17.9 |
+
+Three honest caveats, because the headline reads better than the run deserves:
+
+* **n=8.** 100% on eight cases is encouraging, not a claim.
+* **The stateless arm is no longer 0%.** A real model produces plausible
+  defaults, and substring scoring cannot tell a lucky guess from a recalled
+  fact. The offline 0% was partly an artefact of a stub that never guesses.
+* **Precision is far worse live — 28.7% against 87.9% offline.** A real model
+  extracts from turns the rule fixture ignores, storing 17.9 records per user
+  instead of 7.8. The offline precision number flatters the system, and this is
+  the honest one. (Memory *recall* also drops, to 73.2%, but partly for a
+  scoring reason: gold facts are matched as substrings, and a model that stores
+  "User wants SQL shown before execution" is marked as having lost
+  "show me the sql" when it plainly has not.)
+
 **Where it still fails.** Decision-relevant recall is 80%, and every remaining
 failure is a *retrieval* miss, not a write-path bug: the right fact is stored and
 live, but "how should I set up my editor?" does not retrieve "I use Neovim"
@@ -257,6 +285,30 @@ costlier, and impossible to pin down in a test.
 Facts the extractor cannot slot are still kept; they simply never supersede
 anything, and dedupe falls back to embedding similarity.
 
+### The managed baseline
+
+`mem0` runs as a fourth arm, on identical footing: the same Nova model, the same
+Titan embeddings, the same Postgres instance, the same prompt builder and the
+same scoring. Only the memory logic differs.
+
+```bash
+pip install -e ".[baseline]"
+python -m engram.eval.runner eval/cases/core.jsonl \
+  --provider bedrock --embedder bedrock --limit 2 --arms manager mem0
+```
+
+It is opt-in and never part of CI, because mem0 calls an LLM on every write.
+Two things worth stating so the comparison is read fairly: this is mem0's
+**default** behaviour, not mem0 tuned — no custom prompts, no graph memory, no
+hosted platform; and mem0 is wired through its `langchain` provider so it
+receives the same model *object* we use.
+
+That routing turned out to be mandatory. **mem0 2.0.20's own `aws_bedrock`
+adapter is broken for Amazon models**: `_format_messages_amazon` emits
+`{"role": ..., "content": "<text>"}` where the Bedrock Converse API requires
+content blocks, so every Nova call fails parameter validation. Its Anthropic
+formatter builds the blocks correctly; the Amazon one does not.
+
 ### The injection gate
 
 An agent reads far more text than its user writes. If any of it can reach the
@@ -315,7 +367,6 @@ it is the price of being able to honour the request.
 
 | Slice | Work |
 |---|---|
-| 4 | mem0 / LangMem as a managed baseline on the same benchmark |
 | later | Retrieval quality (every remaining failure is a recall miss), FastAPI + SSE, real LoCoMo loader, OpenTelemetry, teardownable CDK stack |
 
 Known limits, stated rather than buried: the content-marker layer is a heuristic

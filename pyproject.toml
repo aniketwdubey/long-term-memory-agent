@@ -21,6 +21,17 @@ dependencies = [
 embed = [
     "fastembed>=0.8,<0.9",
 ]
+# The managed-memory baseline the benchmark compares against. Optional because
+# mem0 needs a real LLM on every write, so this arm can never join CI, and
+# because it pulls openai/qdrant/sqlalchemy that the product itself never uses.
+baseline = [
+    "mem0ai>=2,<3",
+    # mem0's own aws_bedrock adapter is broken for Amazon models (it sends a
+    # bare string where Converse wants content blocks), so we route it through
+    # its langchain provider — which also hands it the exact model object we
+    # use. That provider imports the langchain umbrella package.
+    "langchain>=1,<2",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",

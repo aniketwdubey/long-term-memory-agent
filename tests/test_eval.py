@@ -11,7 +11,7 @@ from pydantic import ValidationError
 from engram.config import Settings
 from engram.eval.cases import CaseKind, EvalCase, load_cases
 from engram.eval.metrics import ArmReport, CaseResult, score_answer, score_store
-from engram.eval.runner import ARMS, run_arm
+from engram.eval.runner import ARMS, DEFAULT_ARMS, run_arm
 from engram.schemas import Memory
 
 CASES_PATH = Path(__file__).resolve().parent.parent / "eval" / "cases" / "core.jsonl"
@@ -156,6 +156,16 @@ def test_rates_are_computed_per_kind() -> None:
     assert report.rate() == pytest.approx(2 / 3)
 
 
+def test_the_managed_baseline_is_not_in_the_offline_default_run() -> None:
+    """mem0 calls a real LLM on every write, so it can never be part of CI.
+
+    If it ever slips into the default arms, `make eval` starts costing money and
+    stops being deterministic — both of which would quietly ruin the gate.
+    """
+    assert "mem0" not in DEFAULT_ARMS
+    assert "mem0" in {a.label for a in ARMS}
+
+
 def test_rates_of_an_empty_arm_are_zero_not_undefined() -> None:
     empty = ArmReport(arm="t")
     assert empty.rate() == 0.0
@@ -176,7 +186,8 @@ def test_each_arm_beats_the_one_before_it_on_the_real_benchmark(
     regressed regardless of what any individual metric says.
     """
     cases = load_cases(CASES_PATH)[:8]
-    stateless, naive, manager = (run_arm(settings, cases, arm) for arm in ARMS)
+    offline = [a for a in ARMS if a.label in DEFAULT_ARMS]
+    stateless, naive, manager = (run_arm(settings, cases, arm) for arm in offline)
 
     assert stateless.rate() == 0.0
     assert naive.rate() > stateless.rate()
