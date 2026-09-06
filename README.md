@@ -375,3 +375,4 @@ contains the old value, `reject_any` trips even though memory did the right
 thing. The cases are worded to avoid it and the demo asserts on what was
 *recalled* rather than on the reply text — but it is a real limit of blunt
 scoring, and the reason an LLM judge eventually earns its place for live runs.
+# long-term-memory-agent
