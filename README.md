@@ -37,6 +37,10 @@ none of them.
 
 ## Architecture
 
+![engram architecture: recall, respond, remember](docs/architecture.svg)
+
+The same thing in text, for anyone reading this in a terminal:
+
 ```
   user message (session N)                      ┌──────────────────────────────┐
         │                                       │  THREAD MEMORY               │

@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 800" width="960" height="800" font-family="ui-sans-serif, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+  <title>engram architecture: recall, respond, remember</title>
+  <desc>A turn flows through recall, respond and remember. Thread memory holds the
+  transcript; long-term memory holds facts about a user. The write path gates
+  untrusted content, extracts facts into attribute/value slots, deduplicates and
+  resolves contradictions by superseding, and sets decay. The slot is indexed as
+  a second vector, which is what lets retrieval find a fact whose text shares no
+  words with the query.</desc>
+
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+    <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#b91c1c"/>
+    </marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/>
+    </marker>
+  </defs>
+
+  <!-- Opaque card, so the diagram reads the same on light and dark themes. -->
+  <rect x="0" y="0" width="960" height="800" rx="10" fill="#fbfbfd" stroke="#d8dee9"/>
+
+  <text x="34" y="42" font-size="19" font-weight="650" fill="#0f172a">engram — where a turn goes</text>
+  <text x="34" y="64" font-size="12.5" fill="#64748b">Two memories with different scopes, and a write path that decides what may become a fact.</text>
+
+  <!-- ============ left column: the turn ============ -->
+  <rect x="34" y="90" width="246" height="52" rx="8" fill="#ecfdf5" stroke="#10b981"/>
+  <text x="50" y="112" font-size="13" font-weight="600" fill="#065f46">user message · session N</text>
+  <text x="50" y="130" font-size="11" fill="#047857">trusted</text>
+
+  <rect x="34" y="176" width="246" height="54" rx="8" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="50" y="199" font-size="13.5" font-weight="650" fill="#1e3a8a">① RECALL</text>
+  <text x="50" y="218" font-size="11" fill="#1d4ed8">top-k, scoped to this user</text>
+
+  <rect x="34" y="256" width="246" height="54" rx="8" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="50" y="279" font-size="13.5" font-weight="650" fill="#1e3a8a">② RESPOND</text>
+  <text x="50" y="298" font-size="11" fill="#1d4ed8">grounded in what was recalled</text>
+
+  <rect x="34" y="336" width="246" height="54" rx="8" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="50" y="359" font-size="13.5" font-weight="650" fill="#1e3a8a">③ REMEMBER</text>
+  <text x="50" y="378" font-size="11" fill="#1d4ed8">runs after the answer, not before</text>
+
+  <path d="M157,142 L157,176" stroke="#64748b" fill="none" marker-end="url(#a)"/>
+  <path d="M157,230 L157,256" stroke="#64748b" fill="none" marker-end="url(#a)"/>
+  <path d="M157,310 L157,336" stroke="#64748b" fill="none" marker-end="url(#a)"/>
+
+  <!-- ============ thread memory ============ -->
+  <rect x="320" y="252" width="290" height="62" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-dasharray="4 3"/>
+  <text x="336" y="274" font-size="12.5" font-weight="650" fill="#334155">THREAD MEMORY · checkpointer</text>
+  <text x="336" y="292" font-size="10.5" fill="#64748b">one conversation, durable — a transcript</text>
+  <text x="336" y="307" font-size="10.5" fill="#64748b">nothing is judged, nothing extracted</text>
+  <path d="M280,283 L320,283" stroke="#94a3b8" fill="none" stroke-dasharray="4 3" marker-end="url(#a)"/>
+
+  <!-- ============ untrusted input ============ -->
+  <rect x="660" y="90" width="276" height="52" rx="8" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="676" y="112" font-size="13" font-weight="600" fill="#991b1b">tool result · retrieved document</text>
+  <text x="676" y="130" font-size="11" fill="#b91c1c">untrusted — the agent only read it</text>
+  <path d="M798,142 L798,336" stroke="#b91c1c" fill="none" marker-end="url(#ar)"/>
+
+  <!-- ============ the gate ============ -->
+  <rect x="320" y="336" width="616" height="92" rx="9" fill="#fffbeb" stroke="#f59e0b"/>
+  <text x="338" y="360" font-size="13.5" font-weight="650" fill="#92400e">INJECTION GATE — runs before anything else</text>
+  <text x="338" y="381" font-size="11" fill="#b45309">Provenance is structural: untrusted content cannot write user memory, whatever it says.</text>
+  <text x="338" y="399" font-size="11" fill="#b45309">A second, heuristic layer catches hostile text pasted into a trusted turn.</text>
+  <text x="338" y="417" font-size="11" fill="#b45309">Hostile input never reaches a model — the gate reads provenance, not the text.</text>
+  <path d="M280,363 L320,363" stroke="#64748b" fill="none" marker-end="url(#a)"/>
+
+  <rect x="660" y="452" width="276" height="50" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-dasharray="4 3"/>
+  <text x="676" y="474" font-size="12.5" font-weight="650" fill="#991b1b">QUARANTINE</text>
+  <text x="676" y="491" font-size="10.5" fill="#b91c1c">kept for inspection · never searched</text>
+  <path d="M798,428 L798,452" stroke="#b91c1c" fill="none" marker-end="url(#ar)"/>
+  <text x="806" y="446" font-size="10" fill="#b91c1c">blocked</text>
+
+  <!-- ============ extract + policy ============ -->
+  <rect x="320" y="536" width="292" height="86" rx="8" fill="#f5f3ff" stroke="#8b5cf6"/>
+  <text x="336" y="559" font-size="12.5" font-weight="650" fill="#5b21b6">EXTRACT — the only model call</text>
+  <text x="336" y="578" font-size="10.5" fill="#6d28d9">a turn becomes (attribute, value) slots</text>
+  <text x="336" y="600" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#7c3aed">"switched to platform"</text>
+  <text x="336" y="614" font-size="10" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" fill="#7c3aed">    → team = platform</text>
+  <path d="M420,428 L420,536" stroke="#64748b" fill="none" marker-end="url(#a)"/>
+  <text x="428" y="486" font-size="10" fill="#64748b">allowed</text>
+
+  <rect x="644" y="536" width="292" height="86" rx="8" fill="#f0fdfa" stroke="#14b8a6"/>
+  <text x="660" y="559" font-size="12.5" font-weight="650" fill="#115e59">POLICY — deterministic, no model</text>
+  <text x="660" y="578" font-size="10.5" fill="#0f766e">same slot, same value → dedupe</text>
+  <text x="660" y="595" font-size="10.5" fill="#0f766e">same slot, new value → supersede</text>
+  <text x="660" y="612" font-size="10.5" fill="#0f766e">decay only if the user said "for now"</text>
+  <path d="M612,579 L644,579" stroke="#64748b" fill="none" marker-end="url(#a)"/>
+
+  <!-- ============ the store ============ -->
+  <rect x="34" y="656" width="902" height="104" rx="9" fill="#f8fafc" stroke="#475569" stroke-width="1.4"/>
+  <text x="52" y="681" font-size="13.5" font-weight="650" fill="#0f172a">LONG-TERM MEMORY — LangGraph Store over pgvector</text>
+  <text x="52" y="700" font-size="11" fill="#475569">namespace ("memories", user_id) · semantic · episodic · procedural · provenance, importance, expiry, supersession</text>
+  <rect x="52" y="712" width="420" height="30" rx="5" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="66" y="731" font-size="10.5" fill="#3730a3">vector 1 — the fact text</text>
+  <rect x="490" y="712" width="428" height="30" rx="5" fill="#eef2ff" stroke="#6366f1"/>
+  <text x="504" y="731" font-size="10.5" fill="#3730a3">vector 2 — the slot as words: "editor neovim"</text>
+  <path d="M790,622 L790,656" stroke="#64748b" fill="none" marker-end="url(#a)"/>
+
+  <!-- the loop that closes: the slot vector feeds recall -->
+  <path d="M34,727 L16,727 L16,203 L34,203" stroke="#0f766e" fill="none" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#at)"/>
+  <text x="34" y="772" font-size="11" fill="#0f766e">The write path produces the slot; retrieval spends it — "set up my editor" finds "I use Neovim", which shares no words with it.</text>
+  <text x="34" y="789" font-size="11" fill="#64748b">A store written without slots gets nothing from the same change. Measured, not assumed.</text>
+</svg>
