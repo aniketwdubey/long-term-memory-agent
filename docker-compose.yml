@@ -1,0 +1,40 @@
+services:
+  # Postgres with pgvector: the checkpointer's tables and the memory store's
+  # vector index both live here. This is the whole cloud dependency — the
+  # project is fully demonstrable and benchmarkable with zero AWS spend.
+  postgres:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: engram
+      POSTGRES_PASSWORD: engram
+      POSTGRES_DB: engram
+    ports:
+      - "5432:5432"
+    volumes:
+      - engram-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U engram -d engram"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # One-shot: replays the cross-session demo against Postgres.
+  demo:
+    build: .
+    profiles: ["demo"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ENGRAM_STORE_BACKEND: postgres
+      ENGRAM_POSTGRES_DSN: postgresql://engram:engram@postgres:5432/engram
+      ENGRAM_CHAT_PROVIDER: ${ENGRAM_CHAT_PROVIDER:-stub}
+      ENGRAM_EMBEDDER: ${ENGRAM_EMBEDDER:-hashing}
+      ENGRAM_LOG_LEVEL: WARNING
+      AWS_ACCESS_KEY_ID:
+      AWS_SECRET_ACCESS_KEY:
+      AWS_SESSION_TOKEN:
+    command: ["python", "scripts/demo.py"]
+
+volumes:
+  engram-pgdata:
