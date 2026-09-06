@@ -1,5 +1,5 @@
 .PHONY: help install lint test eval eval-semantic eval-live eval-baseline \
-	locomo locomo-live check-bedrock demo up down logs docker-demo clean
+	locomo locomo-live check-bedrock serve demo up down logs docker-demo clean
 
 # Prefer uv when it is installed; fall back to the stdlib venv otherwise.
 UV := $(shell command -v uv 2>/dev/null)
@@ -52,6 +52,9 @@ locomo-live:  ## Run LoCoMo against real Bedrock with an LLM judge
 
 check-bedrock:  ## Preflight the live path and compare Nova models
 	$(PY) scripts/check_bedrock.py
+
+serve:  ## Run the HTTP API on :8000 (docs at /docs)
+	$(VENV)/bin/uvicorn engram.api.main:app --reload --port 8000
 
 demo:  ## Cross-session recall demo, in-process
 	ENGRAM_LOG_LEVEL=WARNING $(PY) scripts/demo.py
