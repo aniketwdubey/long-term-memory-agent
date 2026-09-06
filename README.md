@@ -480,6 +480,14 @@ benchmark has no time axis.
 
 ---
 
+## Writeup
+
+[**Building agent memory that changes the right answer**](docs/blog.md) — the
+design decisions, the three times this benchmark produced a flattering number
+before I caught it, what only a live model could find, and where mem0 wins.
+
+---
+
 ## Layout
 
 ```
