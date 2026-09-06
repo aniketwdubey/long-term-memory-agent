@@ -75,6 +75,12 @@ class Settings(BaseSettings):
     # Slotted facts do not use this: they dedupe on the slot's value.
     dedupe_similarity: float = Field(default=0.9, ge=0.0, le=1.0)
 
+    # --- Injection gate ----------------------------------------------------
+    # The provenance rule — untrusted content may never write user memory — is
+    # structural and not configurable. This toggles only the second, heuristic
+    # layer that scans *trusted* turns for text aimed at the assistant.
+    scan_trusted_content: bool = True
+
     # --- Retrieval ---------------------------------------------------------
     # Only a handful of memories are injected per turn — the whole point is to
     # stay cheap as the store grows past what a context window could hold.

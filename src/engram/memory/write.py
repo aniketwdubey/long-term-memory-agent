@@ -45,6 +45,8 @@ class MemoryOp(StrEnum):
     WRITE = "write"
     DEDUPE = "dedupe"
     SUPERSEDE = "supersede"
+    # Content the injection gate refused. Kept for inspection, never recalled.
+    QUARANTINE = "quarantine"
 
 
 class MemoryDecision(BaseModel):
@@ -99,9 +101,10 @@ class NaiveMemoryWriter:
     """Stores every user turn verbatim. The baseline the manager must beat.
 
     Note what it does *not* do with ``source``: it records provenance faithfully
-    but does not act on it, so untrusted content becomes a memory like anything
-    else. That is the vulnerable baseline the injection gate is measured
-    against; it is not a gap left by accident.
+    but does not act on it, so a poisoned document the agent merely *read*
+    becomes a fact about the user like anything else. That is the vulnerable
+    baseline the injection gate is measured against; it is not a gap left by
+    accident, and it is why this class is still reachable.
     """
 
     def __init__(self, store: BaseStore) -> None:

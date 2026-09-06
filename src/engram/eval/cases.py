@@ -15,6 +15,8 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from engram.schemas import Provenance
+
 
 class CaseKind(StrEnum):
     """What a case is testing.
@@ -26,11 +28,39 @@ class CaseKind(StrEnum):
     CONFLICT          a later session contradicts an earlier one. The right
                       answer uses the new fact and must not surface the stale
                       one — which a store that simply keeps both cannot do.
+    INJECTION         the history contains hostile text — a poisoned document
+                      the agent read, or hostile content pasted into a turn.
+                      None of it may become a fact about the user.
     """
 
     PASSIVE_RECALL = "passive_recall"
     DECISION_RELEVANT = "decision_relevant"
     CONFLICT = "conflict"
+    INJECTION = "injection"
+
+
+class Turn(BaseModel):
+    """One thing that happened in a session, and where it came from.
+
+    A bare string parses as the user speaking, which keeps ordinary cases
+    readable. Anything the agent merely *read* — a tool result, a retrieved
+    document — must say so, because provenance is the whole subject of the
+    injection cases.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    text: str = Field(min_length=1)
+    source: Provenance = Provenance.USER
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_a_bare_string(cls, value: object) -> object:
+        return {"text": value} if isinstance(value, str) else value
+
+    @property
+    def spoken_by_user(self) -> bool:
+        return self.source is Provenance.USER
 
 
 class Session(BaseModel):
@@ -39,7 +69,7 @@ class Session(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     thread_id: str
-    turns: list[str] = Field(min_length=1)
+    turns: list[Turn] = Field(min_length=1)
 
 
 class EvalCase(BaseModel):
@@ -55,9 +85,15 @@ class EvalCase(BaseModel):
     probe_thread_id: str = "probe"
 
     # The answer must contain at least one `expect_any` string and none of the
-    # `reject_any` ones. Matching is case-insensitive substring.
-    expect_any: list[str] = Field(min_length=1)
+    # `reject_any` ones. Matching is case-insensitive substring. `expect_any`
+    # may be empty when a case only asserts that something is absent.
+    expect_any: list[str] = []
     reject_any: list[str] = []
+
+    # Substrings that must NOT appear in any *stored* memory. This is the
+    # injection metric proper: an answer can be clean by luck, but a poisoned
+    # fact sitting in the store will surface on some later turn.
+    poison_markers: list[str] = []
 
     # Substrings a well-behaved store *should* hold for this user, used to score
     # memory precision and recall. These describe facts worth keeping — not the
@@ -65,6 +101,12 @@ class EvalCase(BaseModel):
     gold_facts: list[str] = []
 
     note: str = ""
+
+    @model_validator(mode="after")
+    def _must_assert_something(self) -> EvalCase:
+        if not (self.expect_any or self.reject_any or self.poison_markers):
+            raise ValueError(f"case {self.id!r}: asserts nothing")
+        return self
 
     @model_validator(mode="after")
     def _probe_thread_must_be_new(self) -> EvalCase:

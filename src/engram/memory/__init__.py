@@ -13,6 +13,20 @@ from engram.memory.extract import (
     RuleFactExtractor,
     build_extractor,
 )
+from engram.memory.forget import (
+    ForgetReport,
+    forget_memory,
+    forget_thread,
+    forget_user,
+    known_threads,
+    record_thread,
+)
+from engram.memory.gate import (
+    GateDecision,
+    GateVerdict,
+    InjectionGate,
+    find_injection_markers,
+)
 from engram.memory.manager import MemoryManager
 from engram.memory.read import MemoryReader
 from engram.memory.write import (
@@ -25,6 +39,10 @@ from engram.memory.write import (
 
 __all__ = [
     "CandidateFact",
+    "ForgetReport",
+    "GateDecision",
+    "GateVerdict",
+    "InjectionGate",
     "ExtractionResult",
     "FactExtractor",
     "LLMFactExtractor",
@@ -37,4 +55,10 @@ __all__ = [
     "RuleFactExtractor",
     "WriteReport",
     "build_extractor",
+    "find_injection_markers",
+    "forget_memory",
+    "forget_thread",
+    "forget_user",
+    "known_threads",
+    "record_thread",
 ]

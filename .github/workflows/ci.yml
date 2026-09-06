@@ -41,4 +41,5 @@ jobs:
             eval/cases/core.jsonl \
             --fail-under-decision 0.75 \
             --fail-under-conflict 0.40 \
-            --fail-under-precision 0.85
+            --fail-under-precision 0.85 \
+            --fail-under-injection 1.00

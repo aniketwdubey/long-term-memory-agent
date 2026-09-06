@@ -26,9 +26,11 @@ from pydantic import BaseModel, ConfigDict
 
 from engram.embeddings import build_embedder
 from engram.memory.extract import build_extractor
+from engram.memory.forget import ForgetReport, forget_thread, forget_user, record_thread
+from engram.memory.gate import InjectionGate
 from engram.memory.manager import MemoryManager
 from engram.memory.read import MemoryReader
-from engram.memory.write import MemoryDecision, MemoryWriter, NaiveMemoryWriter
+from engram.memory.write import MemoryDecision, MemoryWriter, NaiveMemoryWriter, WriteReport
 from engram.models import build_chat_model
 from engram.prompts import build_system_prompt
 from engram.schemas import Memory, Provenance, Recall
@@ -43,6 +45,10 @@ class AgentState(MessagesState):
     """Graph state: the thread's messages plus this turn's memory activity."""
 
     user_id: str
+    # Carried in state rather than read from the run config, so the write path
+    # can stamp every memory with the conversation it was learned in — which is
+    # what makes "forget this conversation" and per-session tracing possible.
+    thread_id: str
     # Per-turn, not accumulated — these are the memories that shaped *this*
     # answer, and they are what the turn trace reports.
     recalled: list[dict[str, Any]]
@@ -105,6 +111,7 @@ def build_graph(
         report = writer.apply(
             state["user_id"],
             _last_human_text(state),
+            thread_id=state.get("thread_id"),
             source=Provenance.USER,
         )
         return {
@@ -172,6 +179,7 @@ class Agent:
         self.settings = settings
         self.memory_enabled = memory
         self.store = store
+        self.checkpointer = checkpointer
         self.reader = MemoryReader(store, top_k=settings.recall_top_k)
         chat_model = model or build_chat_model(settings)
         self.writer = writer or build_writer(
@@ -194,10 +202,17 @@ class Agent:
         that separation is what makes a fact learned in one session available in
         the next, which is the whole point of the system.
         """
+        if self.memory_enabled:
+            # The checkpointer is keyed by thread and knows nothing about users,
+            # so without this index there is no way to find — or delete — a
+            # given person's transcripts. See engram.memory.forget.
+            record_thread(self.store, user_id, thread_id)
+
         result = self._graph.invoke(
             {
                 "messages": [HumanMessage(content=message)],
                 "user_id": user_id,
+                "thread_id": thread_id,
                 "recalled": [],
                 "written": [],
                 "decisions": [],
@@ -226,6 +241,38 @@ class Agent:
             ops=[d.op.value for d in trace.decisions],
         )
         return trace
+
+    def observe(
+        self,
+        user_id: str,
+        text: str,
+        *,
+        thread_id: str | None = None,
+        source: Provenance = Provenance.TOOL,
+    ) -> WriteReport:
+        """Feed the agent content it *read* rather than content the user said.
+
+        A tool result, a retrieved document, a file. This is the path an
+        injection arrives on, and it is separate from :meth:`chat` precisely so
+        that provenance is explicit at the call site rather than inferred: text
+        the agent merely read must never be able to masquerade as the user
+        speaking. The gate does the rest.
+        """
+        return self.writer.apply(user_id, text, thread_id=thread_id, source=source)
+
+    def quarantined(self, user_id: str) -> list[dict[str, object]]:
+        """Content the injection gate refused to store, for inspection."""
+        writer = self.writer
+        gate = writer.gate if isinstance(writer, MemoryManager) else InjectionGate(self.store)
+        return gate.quarantined(user_id)
+
+    def forget(self, user_id: str) -> ForgetReport:
+        """Erase a user: every memory, everything quarantined, every transcript."""
+        return forget_user(self.store, self.checkpointer, user_id)
+
+    def forget_conversation(self, user_id: str, thread_id: str) -> ForgetReport:
+        """Erase one conversation and anything learned from it."""
+        return forget_thread(self.store, self.checkpointer, user_id, thread_id)
 
     def history(self, thread_id: str) -> list[str]:
         """The persisted transcript of a thread, oldest first.

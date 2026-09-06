@@ -21,7 +21,13 @@ from typing import NamedTuple
 
 from engram.config import Settings
 from engram.eval.cases import CaseKind, EvalCase, load_cases
-from engram.eval.metrics import ArmReport, CaseResult, score_answer, score_store
+from engram.eval.metrics import (
+    ArmReport,
+    CaseResult,
+    score_answer,
+    score_injection,
+    score_store,
+)
 from engram.graph import Agent
 from engram.logging import configure_logging
 from engram.store import open_backend
@@ -50,8 +56,15 @@ def run_case(agent: Agent, case: EvalCase, *, memory: bool) -> CaseResult:
     user = case.user_key
 
     for session in case.sessions:
+        thread = f"{case.id}:{session.thread_id}"
         for turn in session.turns:
-            agent.chat(user, f"{case.id}:{session.thread_id}", turn)
+            if turn.spoken_by_user:
+                agent.chat(user, thread, turn.text)
+            else:
+                # Content the agent read rather than content the user said. It
+                # goes to the write path with its real provenance — which is the
+                # entire question the injection cases ask.
+                agent.observe(user, turn.text, thread_id=thread, source=turn.source)
 
     trace = agent.chat(user, f"{case.id}:{case.probe_thread_id}", case.probe)
     passed, reason = score_answer(trace.reply, case.expect_any, case.reject_any)
@@ -61,6 +74,7 @@ def run_case(agent: Agent, case: EvalCase, *, memory: bool) -> CaseResult:
     # behaviour, and precision must not punish a system for doing that.
     stored = [m for m in agent.reader.all_memories(user) if m.is_active()] if memory else []
     gold_covered, gold_total, useful, total = score_store(stored, case.gold_facts)
+    poison_blocked, poison_total = score_injection(stored, case.poison_markers)
 
     return CaseResult(
         case_id=case.id,
@@ -74,6 +88,8 @@ def run_case(agent: Agent, case: EvalCase, *, memory: bool) -> CaseResult:
         gold_total=gold_total,
         useful_memories=useful,
         total_memories=total,
+        poison_blocked=poison_blocked,
+        poison_total=poison_total,
     )
 
 
@@ -130,6 +146,8 @@ def render_report(reports: Sequence[ArmReport], cases: Sequence[EvalCase]) -> st
     lines.append("")
     row(f"overall (n={len(cases)})", [_pct(r.rate()) for r in reports])
     lines.append("")
+    if any(r.poison_total for report in reports for r in report.results):
+        row("injection resistance", [_pct(r.injection_resistance) for r in reports])
     row("memory recall (kept the facts)", [_pct(r.memory_recall) for r in reports])
     row("memory precision (kept only)", [_pct(r.memory_precision) for r in reports])
     row("avg memories stored / user", [f"{r.avg_memories_stored:.1f}" for r in reports])
@@ -172,6 +190,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         help="Exit non-zero if conflict-resolution accuracy is below RATE (0-1).",
     )
     parser.add_argument(
+        "--fail-under-injection",
+        type=float,
+        default=None,
+        metavar="RATE",
+        help="Exit non-zero if injection resistance is below RATE (0-1).",
+    )
+    parser.add_argument(
         "--fail-under-precision",
         type=float,
         default=None,
@@ -205,6 +230,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         ("conflict resolution", CaseKind.CONFLICT, args.fail_under_conflict),
     )
     failed = False
+    if (
+        args.fail_under_injection is not None
+        and shipped.injection_resistance < args.fail_under_injection
+    ):
+        print(
+            f"FAIL: injection resistance {shipped.injection_resistance:.3f} "
+            f"< {args.fail_under_injection:.3f}",
+            file=sys.stderr,
+        )
+        failed = True
     for name, kind, floor in gates:
         if floor is None:
             continue
