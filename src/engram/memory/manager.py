@@ -37,7 +37,7 @@ import structlog
 from langchain_core.embeddings import Embeddings
 from langgraph.store.base import BaseStore
 
-from engram.memory.extract import CandidateFact, FactExtractor
+from engram.memory.extract import CandidateFact, FactExtractor, has_temporal_marker
 from engram.memory.gate import InjectionGate
 from engram.memory.write import MemoryDecision, MemoryOp, WriteReport
 from engram.schemas import MEMORY_NAMESPACE, Memory, Provenance, utcnow
@@ -48,6 +48,12 @@ if TYPE_CHECKING:  # pragma: no cover - import-time typing only
 log = structlog.get_logger(__name__)
 
 _MAX_EXISTING = 500
+
+# Values that are a model saying "I don't know" rather than a fact. Left
+# unchecked they fill a slot and, being different from whatever is there,
+# supersede it — so the agent forgets something true because it was asked a
+# question about it.
+_NON_VALUES = frozenset({"", "unknown", "unspecified", "none", "n/a", "na", "null", "?"})
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -122,6 +128,11 @@ class MemoryManager:
             log.debug("memory.extract.empty", user_id=user_id, chars=len(text))
             return WriteReport()
 
+        candidates = [self._verify_ttl(c, text) for c in candidates]
+        candidates = [c for c in candidates if self._is_usable(c)]
+        if not candidates:
+            return WriteReport()
+
         existing = self._active_memories(user_id)
         written: list[Memory] = []
         decisions: list[MemoryDecision] = []
@@ -143,6 +154,57 @@ class MemoryManager:
             ops=[d.op.value for d in decisions],
         )
         return WriteReport(written=written, decisions=decisions)
+
+    @staticmethod
+    def _is_usable(candidate: CandidateFact) -> bool:
+        """Reject a slotted candidate that carries no actual value.
+
+        Found on the first live run, and it is the most destructive failure this
+        code has had. Asked "Which team am I on again?", the model dutifully
+        returned ``team=""`` — a fact-shaped object with nothing in it. Because
+        the empty value differs from the stored one, conflict resolution treated
+        it as a contradiction and **superseded the correct fact**. Asking a
+        question about something made the agent forget it.
+
+        The same applies to "unknown" and friends: those are the model
+        signalling absence, not reporting a value. A slot must be filled to
+        supersede what is already in it.
+        """
+        if not candidate.attribute:
+            return True
+        if _norm(candidate.value) in _NON_VALUES:
+            log.debug(
+                "memory.candidate.rejected",
+                reason="slotted candidate has no value",
+                attribute=candidate.attribute,
+                candidate=candidate.text,
+            )
+            return False
+        return True
+
+    def _verify_ttl(self, candidate: CandidateFact, turn: str) -> CandidateFact:
+        """Drop an expiry the user's own words do not support.
+
+        Whether a fact is durable is too consequential to delegate: a wrong TTL
+        does not fail loudly, it forgets a standing preference weeks later and
+        the agent quietly starts getting answers wrong again. Live models are
+        genuinely bad at this — on the first Bedrock run Nova Micro gave
+        "prefers pytest" a 365-day expiry and "on the payments team" a 30-day
+        one, neither of which the user said anything to suggest.
+
+        So the model may *propose* an expiry, and this checks the proposal
+        against the text it came from. Same division of labour as everywhere
+        else here: the model normalises, policy code decides.
+        """
+        if candidate.ttl_days is None or has_temporal_marker(turn):
+            return candidate
+
+        log.debug(
+            "memory.ttl.rejected",
+            candidate=candidate.text,
+            proposed_ttl_days=candidate.ttl_days,
+        )
+        return candidate.model_copy(update={"ttl_days": None})
 
     def _resolve(
         self,
