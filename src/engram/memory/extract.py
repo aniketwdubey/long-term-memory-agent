@@ -1,0 +1,273 @@
+"""Extraction: turning a conversational turn into candidate facts.
+
+This is the first decision in the write path, and the one that fixes precision:
+most turns contain nothing worth remembering, and the ones that do usually bury
+a fact inside chatter. A turn goes in; zero or more normalised candidates come
+out.
+
+The important output is not the text but the **slot** — the ``(attribute,
+value)`` pair. "I switched to the platform team" becomes
+``team = platform``, which is what later lets policy code recognise it as
+contradicting ``team = payments`` without asking a model to adjudicate. Getting
+messy human phrasing into that shape is exactly what a language model is good
+at, so extraction is where the LLM belongs.
+
+Two implementations, chosen by ``ENGRAM_CHAT_PROVIDER``:
+
+``LLMFactExtractor``   the real one — structured output from Claude on Bedrock.
+``RuleFactExtractor``  a deterministic offline stand-in. **It is a test fixture,
+                       not a small language model**, and its job is to make CI
+                       hermetic while holding extraction quality constant, so
+                       that the numbers move only when the dedupe / conflict /
+                       decay policy moves. Extraction quality itself is measured
+                       by running the benchmark against Bedrock.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import TYPE_CHECKING, Protocol, runtime_checkable
+
+import structlog
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import HumanMessage, SystemMessage
+from pydantic import BaseModel, ConfigDict, Field
+
+from engram.schemas import MemoryKind
+
+if TYPE_CHECKING:  # pragma: no cover - import-time typing only
+    from engram.config import Settings
+
+log = structlog.get_logger(__name__)
+
+
+class CandidateFact(BaseModel):
+    """One fact proposed for storage, before dedupe and conflict resolution."""
+
+    model_config = ConfigDict(frozen=True)
+
+    text: str = Field(min_length=1, description="The fact in canonical, self-contained form.")
+    attribute: str = Field(
+        default="",
+        description=(
+            "Normalised slot key such as 'team', 'location', 'editor'. Two facts "
+            "with the same attribute and scope cannot both be true. Empty when "
+            "the fact does not occupy a named slot."
+        ),
+    )
+    value: str = Field(default="", description="The value filling that slot.")
+    scope: str = Field(
+        default="",
+        description="Optional qualifier ('work', 'home') letting two values coexist.",
+    )
+    kind: MemoryKind = MemoryKind.SEMANTIC
+    importance: float = Field(default=0.5, ge=0.0, le=1.0)
+    ttl_days: int | None = Field(
+        default=None,
+        description="Days until this should be forgotten. None for durable facts.",
+    )
+
+
+class ExtractionResult(BaseModel):
+    """The structured-output envelope for one turn."""
+
+    facts: list[CandidateFact] = Field(
+        default_factory=list,
+        description="Facts worth remembering. Empty for small talk — most turns.",
+    )
+
+
+@runtime_checkable
+class FactExtractor(Protocol):
+    """Turn text in, candidate facts out."""
+
+    def extract(self, turn: str) -> list[CandidateFact]: ...
+
+
+EXTRACTION_SYSTEM = """\
+You extract durable facts about a user from one conversational turn, so an \
+assistant can remember them in later sessions.
+
+Return facts ONLY when the turn states something about the user that would \
+still be useful weeks from now: preferences, tools they use, where they live, \
+their role or team, constraints, dietary needs, and standing instructions about \
+how they want things done. Most turns contain nothing — small talk, status \
+updates, questions and requests are not facts. Returning an empty list is the \
+common, correct answer; inventing facts to seem useful is the main failure mode.
+
+For each fact:
+- `text` — a self-contained sentence in the third person, understandable with \
+no other context. Write "Prefers pytest for testing", not "yeah I like it".
+- `attribute` — a short snake_case slot key. Two facts that cannot both be true \
+at once MUST share an attribute: use `team` for what team they are on, \
+`location` for where they live, `editor` for their editor, and so on. Reuse the \
+obvious key rather than inventing a specific one.
+- `value` — the value filling the slot, normalised and short: "platform", \
+"Berlin", "pytest".
+- `scope` — set only when two values of the same attribute can genuinely both \
+be true (a work address and a home address). Otherwise leave it empty.
+- `kind` — `semantic` for durable facts, `episodic` for things that happened, \
+`procedural` for standing instructions about how to do things.
+- `importance` — 0 to 1. Standing preferences and constraints score high.
+- `ttl_days` — set ONLY for explicitly temporary states ("I'm debugging this \
+today", "I'm on call this week"). Durable preferences must leave it null.
+"""
+
+
+class LLMFactExtractor:
+    """Extraction by structured output from the chat model."""
+
+    def __init__(self, model: BaseChatModel) -> None:
+        self._model = model.with_structured_output(ExtractionResult)
+
+    def extract(self, turn: str) -> list[CandidateFact]:
+        try:
+            result = self._model.invoke(
+                [SystemMessage(content=EXTRACTION_SYSTEM), HumanMessage(content=turn)]
+            )
+        except Exception as exc:
+            # Never let a memory write take down the conversation. A turn that
+            # cannot be extracted is a turn that is not remembered, which is
+            # recoverable; a failed response is not.
+            log.warning("memory.extract.failed", error=str(exc), chars=len(turn))
+            return []
+
+        if isinstance(result, ExtractionResult):
+            return list(result.facts)
+        return list(ExtractionResult.model_validate(result).facts)
+
+
+# --- the offline stand-in ----------------------------------------------------
+
+# Sentences that state something about the speaker. Deliberately about grammar
+# rather than topic, so which *subjects* are recognised is not baked in here.
+#
+# The verb list is kept tight on purpose. Widening it to catch more facts costs
+# precision fast — "I need to renew my passport" and "I'm going to grab lunch"
+# are errands, not facts about the user, and a write path that stores them is
+# the naive baseline wearing a costume.
+_SUBJECT = r"\b(?:i|we)(?:'(?:ve|d|ll))?"
+_STATIVE_VERBS = (
+    r"prefer|like|love|hate|use|run|write|deploy|live|living|work|working|"
+    r"joined|switched|moved|relocated|migrated|eat|am|are"
+)
+
+_FACT_PATTERNS = (
+    re.compile(rf"{_SUBJECT}\s+(?:\w+\s+){{0,2}}?(?:{_STATIVE_VERBS})\b", re.IGNORECASE),
+    # "I'm on the payments team", "I'm vegetarian", "I'm based in Lisbon" —
+    # a predicate describing the speaker.
+    re.compile(r"\bi'?m\s+(?:an?\s+)?(?!\w+ing\b)\w+", re.IGNORECASE),
+    re.compile(r"\bmy\s+(?:\w+\s+){1,2}(?:is|are)\b", re.IGNORECASE),
+)
+
+# A progressive predicate describes an activity, not a state: "I'm debugging a
+# flaky test", "my sister is visiting". Neither is a fact about the user worth
+# keeping — unless the user marked it as a temporary state, in which case it is
+# exactly the kind of memory that should be stored *and then expire*.
+_ACTIVITY_PATTERN = re.compile(r"\b(?:i'?m|is|are)\s+\w+ing\b", re.IGNORECASE)
+
+# Standing instructions — how the user wants things done.
+_DIRECTIVE_PATTERN = re.compile(
+    r"^\s*(?:always|never|don'?t|do not|please\s+(?:always|never))\b", re.IGNORECASE
+)
+
+# States the user marked as temporary. Only explicit markers count; guessing at
+# transience is how durable preferences get silently forgotten.
+_TRANSIENT_PATTERN = re.compile(
+    r"\b(?:today|tonight|right now|this (?:morning|afternoon|week|sprint))\b",
+    re.IGNORECASE,
+)
+_TRANSIENT_TTL_DAYS = 7
+
+# The slot lexicon. This is the part a real model does far better, and it is the
+# reason the rule extractor is documented as a fixture: a lexicon can only
+# recognise vocabulary someone thought of in advance. Anything it misses falls
+# through as an unslotted fact — still stored, still deduplicated, just never
+# superseding anything.
+_SLOT_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("team", re.compile(r"\b(?:the\s+)?([a-z]+)\s+team\b", re.IGNORECASE)),
+    (
+        "location",
+        re.compile(
+            r"\b(?i:live in|living in|based in|relocated to|moved to|i'?m in)\s+"
+            r"([A-Z][a-zA-Z]+)"
+        ),
+    ),
+    ("testing_framework", re.compile(r"\b(pytest|unittest|jest|vitest|junit|rspec)\b", re.I)),
+    ("web_framework", re.compile(r"\b(fastapi|flask|django|express|rails)\b", re.I)),
+    ("database", re.compile(r"\b(postgres|postgresql|mysql|sqlite|mongodb|dynamodb)\b", re.I)),
+    ("editor", re.compile(r"\b(neovim|zed|emacs|vs ?code|pycharm|intellij|sublime)\b", re.I)),
+    ("language", re.compile(r"\b(typescript|javascript|rust|kotlin|golang)\b", re.I)),
+    ("deploy_tool", re.compile(r"\b(terraform|pulumi|ansible|cloudformation|helm)\b", re.I)),
+    ("diet", re.compile(r"\b(vegetarian|vegan|pescatarian|halal|kosher)\b", re.I)),
+    ("accessibility", re.compile(r"\b(colou?rblind|colou?r[- ]blind|dyslexic)\b", re.I)),
+    ("pet_name", re.compile(r"\b(?i:my (?:dog|cat))\s+([A-Z][a-zA-Z]+)")),
+)
+
+# Split on sentence terminators only. An em dash *joins* clauses — splitting on
+# it tears "I've moved off payments — I'm on the platform team now" into two
+# candidates, and the dangling first half gets stored as an unslotted fact that
+# still contains the stale value, so the contradiction survives resolution.
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])\s+")
+
+
+class RuleFactExtractor:
+    """Deterministic offline extraction. A fixture, not a model — see the module docstring.
+
+    It keeps sentences that grammatically state something about the speaker,
+    drops everything else, and assigns a slot from a fixed lexicon. That is
+    enough to hold extraction roughly constant so the policy downstream of it
+    can be measured, and no more than that.
+    """
+
+    def extract(self, turn: str) -> list[CandidateFact]:
+        facts: list[CandidateFact] = []
+        for raw in _SENTENCE_SPLIT.split(turn.strip()):
+            sentence = raw.strip().rstrip(".!?").strip()
+            if not sentence:
+                continue
+
+            directive = bool(_DIRECTIVE_PATTERN.search(sentence))
+            transient = bool(_TRANSIENT_PATTERN.search(sentence))
+
+            if not directive and not self._is_fact(sentence, transient=transient):
+                continue
+
+            attribute, value = self._slot(sentence)
+            facts.append(
+                CandidateFact(
+                    text=sentence,
+                    attribute=attribute,
+                    value=value,
+                    kind=MemoryKind.PROCEDURAL if directive else MemoryKind.SEMANTIC,
+                    importance=0.8 if directive or attribute else 0.5,
+                    ttl_days=_TRANSIENT_TTL_DAYS if transient else None,
+                )
+            )
+        return facts
+
+    @staticmethod
+    def _is_fact(sentence: str, *, transient: bool) -> bool:
+        """Whether this sentence states something about the speaker worth keeping."""
+        if _ACTIVITY_PATTERN.search(sentence):
+            # An ongoing activity only earns a memory when the user marked it as
+            # temporary — and it will then expire on its own.
+            return transient
+        return any(p.search(sentence) for p in _FACT_PATTERNS)
+
+    @staticmethod
+    def _slot(sentence: str) -> tuple[str, str]:
+        """First lexicon hit wins; unslotted otherwise."""
+        for attribute, pattern in _SLOT_PATTERNS:
+            match = pattern.search(sentence)
+            if match:
+                value = (match.group(1) if match.groups() else match.group(0)).strip()
+                return attribute, value.lower()
+        return "", ""
+
+
+def build_extractor(settings: Settings, model: BaseChatModel) -> FactExtractor:
+    """Pick the extractor matching the configured chat provider."""
+    if settings.chat_provider == "stub":
+        return RuleFactExtractor()
+    return LLMFactExtractor(model)

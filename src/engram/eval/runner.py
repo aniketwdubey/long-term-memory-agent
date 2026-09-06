@@ -1,13 +1,14 @@
 """Run the benchmark: replay each case under each arm and report the deltas.
 
-Both arms are built from the same graph code with ``memory`` flipped, so the
-comparison isolates one variable. Each case's history is replayed turn by turn
-in its own threads, and only then is the probe asked in a fresh thread.
+Every arm is built from the same graph code, so a difference between columns is
+a difference in the write path and nothing else. Each case's history is replayed
+turn by turn in its own threads, and only then is the probe asked in a fresh
+thread.
 
     python -m engram.eval.runner eval/cases/slice1.jsonl
 
-The exit code is a CI regression gate: ``--fail-under-decision`` fails the build
-when decision-relevant recall drops below a floor.
+The exit code is a CI regression gate: the ``--fail-under-*`` floors fail the
+build when the shipping arm regresses.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
+from typing import NamedTuple
 
 from engram.config import Settings
 from engram.eval.cases import CaseKind, EvalCase, load_cases
@@ -24,8 +26,23 @@ from engram.graph import Agent
 from engram.logging import configure_logging
 from engram.store import open_backend
 
-STATELESS = "stateless"
-MEMORY = "memory (naive writer)"
+
+class Arm(NamedTuple):
+    """One configuration of the agent to benchmark."""
+
+    label: str
+    memory: bool
+    writer: str
+
+
+# Three arms, all compiled from the same graph so the comparison isolates the
+# write path: no memory at all, memory written naively, and memory written by
+# the manager.
+ARMS = (
+    Arm("stateless", memory=False, writer="naive"),
+    Arm("naive", memory=True, writer="naive"),
+    Arm("manager", memory=True, writer="manager"),
+)
 
 
 def run_case(agent: Agent, case: EvalCase, *, memory: bool) -> CaseResult:
@@ -60,7 +77,7 @@ def run_case(agent: Agent, case: EvalCase, *, memory: bool) -> CaseResult:
     )
 
 
-def run_arm(settings: Settings, cases: Sequence[EvalCase], arm: str, *, memory: bool) -> ArmReport:
+def run_arm(settings: Settings, cases: Sequence[EvalCase], arm: Arm) -> ArmReport:
     """Run every case under one arm, in a store dedicated to that arm.
 
     The store is always in-process, whatever ``ENGRAM_STORE_BACKEND`` says. A
@@ -70,16 +87,17 @@ def run_arm(settings: Settings, cases: Sequence[EvalCase], arm: str, *, memory: 
     being measured here is the memory *algorithms*, not the storage backend —
     the durability of that backend is what the Postgres tests are for.
     """
-    settings = settings.model_copy(update={"store_backend": "memory"})
+    settings = settings.model_copy(update={"store_backend": "memory", "memory_writer": arm.writer})
     with open_backend(settings) as backend:
         agent = Agent(
             settings,
             checkpointer=backend.checkpointer,
             store=backend.store,
-            memory=memory,
+            embeddings=backend.embeddings,
+            memory=arm.memory,
         )
-        results = [run_case(agent, case, memory=memory) for case in cases]
-    return ArmReport(arm=arm, results=results)
+        results = [run_case(agent, case, memory=arm.memory) for case in cases]
+    return ArmReport(arm=arm.label, results=results)
 
 
 def _pct(value: float) -> str:
@@ -89,7 +107,7 @@ def _pct(value: float) -> str:
 def render_report(reports: Sequence[ArmReport], cases: Sequence[EvalCase]) -> str:
     """Render the comparison table."""
     kinds = [k for k in CaseKind if any(c.kind == k for c in cases)]
-    width = max(len(r.arm) for r in reports) + 2
+    width = max(max(len(r.arm) for r in reports) + 2, 11)
 
     lines: list[str] = []
     lines.append("")
@@ -144,8 +162,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         type=float,
         default=None,
         metavar="RATE",
-        help="Exit non-zero if decision-relevant recall in the memory arm is below RATE "
-        "(0-1). This is the CI regression gate.",
+        help="Exit non-zero if decision-relevant recall is below RATE (0-1).",
+    )
+    parser.add_argument(
+        "--fail-under-conflict",
+        type=float,
+        default=None,
+        metavar="RATE",
+        help="Exit non-zero if conflict-resolution accuracy is below RATE (0-1).",
+    )
+    parser.add_argument(
+        "--fail-under-precision",
+        type=float,
+        default=None,
+        metavar="RATE",
+        help="Exit non-zero if memory precision is below RATE (0-1).",
     )
     args = parser.parse_args(argv)
 
@@ -160,26 +191,38 @@ def main(argv: Sequence[str] | None = None) -> int:
     configure_logging(settings)
 
     cases = load_cases(args.cases)
-    reports = [
-        run_arm(settings, cases, STATELESS, memory=False),
-        run_arm(settings, cases, MEMORY, memory=True),
-    ]
+    reports = [run_arm(settings, cases, arm) for arm in ARMS]
 
     if args.json:
         print(json.dumps([r.model_dump(mode="json") for r in reports], indent=2))
     else:
         print(render_report(reports, cases))
 
-    memory_arm = reports[-1]
-    if args.fail_under_decision is not None:
-        actual = memory_arm.rate(CaseKind.DECISION_RELEVANT)
-        if actual < args.fail_under_decision:
-            print(
-                f"FAIL: decision-relevant recall {actual:.3f} < {args.fail_under_decision:.3f}",
-                file=sys.stderr,
-            )
-            return 1
-    return 0
+    # Gates apply to the last arm — the one that ships.
+    shipped = reports[-1]
+    gates = (
+        ("decision-relevant recall", CaseKind.DECISION_RELEVANT, args.fail_under_decision),
+        ("conflict resolution", CaseKind.CONFLICT, args.fail_under_conflict),
+    )
+    failed = False
+    for name, kind, floor in gates:
+        if floor is None:
+            continue
+        actual = shipped.rate(kind)
+        if actual < floor:
+            print(f"FAIL: {name} {actual:.3f} < {floor:.3f}", file=sys.stderr)
+            failed = True
+    if (
+        args.fail_under_precision is not None
+        and shipped.memory_precision < args.fail_under_precision
+    ):
+        print(
+            f"FAIL: memory precision {shipped.memory_precision:.3f} "
+            f"< {args.fail_under_precision:.3f}",
+            file=sys.stderr,
+        )
+        failed = True
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":  # pragma: no cover

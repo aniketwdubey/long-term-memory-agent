@@ -19,7 +19,7 @@ def test_written_memories_come_back_from_recall(backend: Backend) -> None:
     writer = NaiveMemoryWriter(backend.store)
     reader = MemoryReader(backend.store, top_k=5)
 
-    writer.write("alice", "I prefer pytest for everything I write.")
+    writer.apply("alice", "I prefer pytest for everything I write.")
     recalls = reader.recall("alice", "what testing framework do I use?")
 
     assert [r.memory.text for r in recalls] == ["I prefer pytest for everything I write."]
@@ -30,23 +30,25 @@ def test_memories_are_isolated_per_user(backend: Backend) -> None:
     writer = NaiveMemoryWriter(backend.store)
     reader = MemoryReader(backend.store, top_k=5)
 
-    writer.write("alice", "I prefer pytest.")
-    writer.write("bob", "I prefer unittest.")
+    writer.apply("alice", "I prefer pytest.")
+    writer.apply("bob", "I prefer unittest.")
 
     assert [r.memory.text for r in reader.recall("alice", "testing")] == ["I prefer pytest."]
     assert [r.memory.text for r in reader.recall("bob", "testing")] == ["I prefer unittest."]
 
 
 def test_writer_records_provenance_and_thread(backend: Backend) -> None:
-    written = NaiveMemoryWriter(backend.store).write(
-        "alice", "a doc said something", thread_id="t1", source=Provenance.TOOL
+    written = (
+        NaiveMemoryWriter(backend.store)
+        .apply("alice", "a doc said something", thread_id="t1", source=Provenance.TOOL)
+        .written
     )
     assert written[0].source is Provenance.TOOL
     assert written[0].thread_id == "t1"
 
 
 def test_writer_ignores_blank_turns(backend: Backend) -> None:
-    assert NaiveMemoryWriter(backend.store).write("alice", "   ") == []
+    assert NaiveMemoryWriter(backend.store).apply("alice", "   ").written == []
 
 
 def test_recall_skips_expired_memories(backend: Backend) -> None:
@@ -77,7 +79,7 @@ def test_recall_skips_superseded_memories(backend: Backend) -> None:
 def test_recall_respects_top_k(backend: Backend) -> None:
     writer = NaiveMemoryWriter(backend.store)
     for i in range(20):
-        writer.write("alice", f"fact number {i} about deployment and testing")
+        writer.apply("alice", f"fact number {i} about deployment and testing")
 
     assert len(MemoryReader(backend.store, top_k=3).recall("alice", "testing")) == 3
 
@@ -100,5 +102,5 @@ def test_recall_overfetches_so_stale_matches_do_not_starve_results(
 
 
 def test_blank_query_recalls_nothing(backend: Backend) -> None:
-    NaiveMemoryWriter(backend.store).write("alice", "I prefer pytest.")
+    NaiveMemoryWriter(backend.store).apply("alice", "I prefer pytest.")
     assert MemoryReader(backend.store).recall("alice", "   ") == []

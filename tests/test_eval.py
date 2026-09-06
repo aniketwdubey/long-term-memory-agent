@@ -11,10 +11,10 @@ from pydantic import ValidationError
 from engram.config import Settings
 from engram.eval.cases import CaseKind, EvalCase, load_cases
 from engram.eval.metrics import ArmReport, CaseResult, score_answer, score_store
-from engram.eval.runner import MEMORY, STATELESS, run_arm
+from engram.eval.runner import ARMS, run_arm
 from engram.schemas import Memory
 
-CASES_PATH = Path(__file__).resolve().parent.parent / "eval" / "cases" / "slice1.jsonl"
+CASES_PATH = Path(__file__).resolve().parent.parent / "eval" / "cases" / "core.jsonl"
 
 
 def _case(**overrides: object) -> dict[str, object]:
@@ -166,15 +166,23 @@ def test_rates_of_an_empty_arm_are_zero_not_undefined() -> None:
 # --- end to end --------------------------------------------------------------
 
 
-def test_memory_arm_beats_the_stateless_arm_on_the_real_benchmark(
+def test_each_arm_beats_the_one_before_it_on_the_real_benchmark(
     settings: Settings,
 ) -> None:
-    """The claim the whole slice exists to support, asserted rather than asserted about."""
-    cases = load_cases(CASES_PATH)[:6]
+    """The claim the project exists to support, asserted rather than asserted about.
 
-    stateless = run_arm(settings, cases, STATELESS, memory=False)
-    memory = run_arm(settings, cases, MEMORY, memory=True)
+    Stateless cannot answer anything; the naive writer can; the manager beats
+    the naive writer. If a change ever inverts that ordering, the write path has
+    regressed regardless of what any individual metric says.
+    """
+    cases = load_cases(CASES_PATH)[:8]
+    stateless, naive, manager = (run_arm(settings, cases, arm) for arm in ARMS)
 
     assert stateless.rate() == 0.0
-    assert memory.rate() > stateless.rate()
-    assert memory.avg_memories_injected <= settings.recall_top_k
+    assert naive.rate() > stateless.rate()
+    assert manager.rate() >= naive.rate()
+
+    # The manager wins by storing less, not by injecting more.
+    assert manager.memory_precision > naive.memory_precision
+    assert manager.avg_memories_stored < naive.avg_memories_stored
+    assert manager.avg_memories_injected <= settings.recall_top_k
