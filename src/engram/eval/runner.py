@@ -17,7 +17,7 @@ import argparse
 import json
 import sys
 from collections.abc import Sequence
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from engram.config import Settings
 from engram.eval.cases import CaseKind, EvalCase, load_cases
@@ -48,10 +48,15 @@ ARMS = (
     Arm("stateless", memory=False, writer="naive"),
     Arm("naive", memory=True, writer="naive"),
     Arm("manager", memory=True, writer="manager"),
+    # Opt-in: mem0 calls a real LLM on every write, so it cannot be part of the
+    # offline default run. Add it with `--arms manager mem0`.
+    Arm("mem0", memory=True, writer="mem0"),
 )
 
+DEFAULT_ARMS = tuple(a.label for a in ARMS if a.writer != "mem0")
 
-def run_case(agent: Agent, case: EvalCase, *, memory: bool) -> CaseResult:
+
+def run_case(agent: Any, case: EvalCase, *, memory: bool) -> CaseResult:
     """Replay one case's history, ask the probe in a new thread, and score it."""
     user = case.user_key
 
@@ -103,6 +108,14 @@ def run_arm(settings: Settings, cases: Sequence[EvalCase], arm: Arm) -> ArmRepor
     being measured here is the memory *algorithms*, not the storage backend —
     the durability of that backend is what the Postgres tests are for.
     """
+    if arm.writer == "mem0":
+        # mem0 owns its own storage, so it does not use our backend at all.
+        from engram.eval.baselines import build_mem0_agent
+
+        mem0_agent = build_mem0_agent(settings)
+        results = [run_case(mem0_agent, case, memory=True) for case in cases]
+        return ArmReport(arm=arm.label, results=results)
+
     settings = settings.model_copy(update={"store_backend": "memory", "memory_writer": arm.writer})
     with open_backend(settings) as backend:
         agent = Agent(
@@ -205,7 +218,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         nargs="+",
         choices=[a.label for a in ARMS],
         default=None,
-        help="Run only these arms. Defaults to all three.",
+        help="Run only these arms. Defaults to the three offline ones; `mem0` is "
+        "opt-in because it calls a real LLM on every write.",
     )
     parser.add_argument(
         "--fail-under-decision",
@@ -250,7 +264,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     cases = load_cases(args.cases)
     if args.limit:
         cases = _sample_per_kind(cases, args.limit)
-    arms = [a for a in ARMS if args.arms is None or a.label in args.arms]
+    selected = args.arms if args.arms is not None else DEFAULT_ARMS
+    arms = [a for a in ARMS if a.label in selected]
     reports = [run_arm(settings, cases, arm) for arm in arms]
 
     if args.json:
