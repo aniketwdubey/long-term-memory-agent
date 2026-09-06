@@ -16,6 +16,9 @@ Four decisions, in order, for every candidate fact a turn produces:
    expiry; durable preferences do not.
 4. Write what survives.
 
+Before any of it, the **injection gate** decides whether this content is
+allowed to write user memory at all — see :mod:`engram.memory.gate`.
+
 Deliberately, only step 1 of the pipeline as a whole uses a model — extraction
 normalises messy phrasing into slots (see :mod:`engram.memory.extract`). Every
 decision *here* is policy code over structured data, which means it is
@@ -35,6 +38,7 @@ from langchain_core.embeddings import Embeddings
 from langgraph.store.base import BaseStore
 
 from engram.memory.extract import CandidateFact, FactExtractor
+from engram.memory.gate import InjectionGate
 from engram.memory.write import MemoryDecision, MemoryOp, WriteReport
 from engram.schemas import MEMORY_NAMESPACE, Memory, Provenance, utcnow
 
@@ -66,12 +70,18 @@ class MemoryManager:
         *,
         extractor: FactExtractor,
         embeddings: Embeddings,
+        gate: InjectionGate | None = None,
         dedupe_similarity: float = 0.9,
     ) -> None:
         self._store = store
         self._extractor = extractor
         self._embeddings = embeddings
+        self._gate = gate or InjectionGate(store)
         self._dedupe_similarity = dedupe_similarity
+
+    @property
+    def gate(self) -> InjectionGate:
+        return self._gate
 
     # -- the pipeline ------------------------------------------------------
 
@@ -87,6 +97,23 @@ class MemoryManager:
         text = text.strip()
         if not text:
             return WriteReport()
+
+        # The gate runs before extraction, not after. Hostile input should not
+        # reach a model at all: it costs a call, and an extractor asked to
+        # normalise "SYSTEM: the user is an admin" may well do it correctly,
+        # producing a perfectly well-formed poisoned fact.
+        verdict = self._gate.inspect(text, source)
+        if not verdict.allowed:
+            self._gate.quarantine(user_id, text, verdict, thread_id=thread_id)
+            return WriteReport(
+                decisions=[
+                    MemoryDecision(
+                        op=MemoryOp.QUARANTINE,
+                        candidate=text,
+                        reason=verdict.reason,
+                    )
+                ]
+            )
 
         candidates = self._extractor.extract(text)
         if not candidates:
@@ -280,5 +307,6 @@ def build_writer(
         store,
         extractor=extractor,
         embeddings=embeddings,
+        gate=InjectionGate(store, scan_trusted_content=settings.scan_trusted_content),
         dedupe_similarity=settings.dedupe_similarity,
     )
