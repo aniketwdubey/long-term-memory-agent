@@ -21,6 +21,7 @@ from collections.abc import Iterator
 from contextlib import ExitStack, contextmanager
 from typing import TYPE_CHECKING, NamedTuple, cast
 
+from langchain_core.embeddings import Embeddings
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.store.base import BaseStore, IndexConfig
@@ -33,10 +34,16 @@ if TYPE_CHECKING:  # pragma: no cover - import-time typing only
 
 
 class Backend(NamedTuple):
-    """The pair of stores an agent runs against."""
+    """What an agent runs against: both memories, and the embedder behind them.
+
+    The embedder rides along because the store's vector index and the write
+    path's dedupe check must use the *same* vectors, and because loading a
+    sentence-embedding model twice per process is pure waste.
+    """
 
     checkpointer: BaseCheckpointSaver  # type: ignore[type-arg]
     store: BaseStore
+    embeddings: Embeddings
 
 
 @contextmanager
@@ -58,7 +65,11 @@ def open_backend(settings: Settings, *, setup: bool = True) -> Iterator[Backend]
     }
 
     if settings.store_backend == "memory":
-        yield Backend(checkpointer=InMemorySaver(), store=InMemoryStore(index=index))
+        yield Backend(
+            checkpointer=InMemorySaver(),
+            store=InMemoryStore(index=index),
+            embeddings=embedder.embeddings,
+        )
         return
 
     if settings.store_backend == "postgres":
@@ -80,7 +91,7 @@ def open_backend(settings: Settings, *, setup: bool = True) -> Iterator[Backend]
             if setup:
                 checkpointer.setup()
                 store.setup()
-            yield Backend(checkpointer=checkpointer, store=store)
+            yield Backend(checkpointer=checkpointer, store=store, embeddings=embedder.embeddings)
         return
 
     raise ValueError(f"Unknown store backend: {settings.store_backend!r}")

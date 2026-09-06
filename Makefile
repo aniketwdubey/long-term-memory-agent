@@ -4,7 +4,7 @@
 UV := $(shell command -v uv 2>/dev/null)
 VENV := .venv
 PY := $(VENV)/bin/python
-CASES := eval/cases/slice1.jsonl
+CASES := eval/cases/core.jsonl
 
 help:  ## Show available targets
 	@grep -hE '^[a-z-]+:.*?## ' $(MAKEFILE_LIST) | awk -F':.*?## ' '{printf "  \033[1m%-14s\033[0m %s\n", $$1, $$2}'
@@ -27,7 +27,7 @@ lint:  ## Ruff + mypy --strict
 test:  ## Offline test suite (no network, no credentials)
 	$(VENV)/bin/pytest
 
-eval:  ## Benchmark, deterministic config (this is the CI gate)
+eval:  ## Benchmark all three arms, deterministic config (this is the CI gate)
 	ENGRAM_LOG_LEVEL=WARNING $(PY) -m engram.eval.runner $(CASES)
 
 eval-semantic:  ## Benchmark with real sentence embeddings (needs the embed extra)

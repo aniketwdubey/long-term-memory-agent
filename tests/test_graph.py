@@ -6,6 +6,7 @@ import pytest
 
 from engram.config import Settings
 from engram.graph import Agent
+from engram.memory.write import MemoryOp
 from engram.models import NO_MEMORY_REPLY
 from engram.store import Backend
 
@@ -44,11 +45,12 @@ def test_one_user_cannot_see_another_users_memories(agent: Agent) -> None:
 def test_turn_trace_reports_what_memory_did(agent: Agent) -> None:
     """Memory-op tracing — which memories were read and written, per turn."""
     first = agent.chat("alice", "t1", "I prefer pytest.")
-    assert [m.text for m in first.written] == ["I prefer pytest."]
+    assert [m.text for m in first.written] == ["I prefer pytest"]
+    assert [d.op for d in first.decisions] == [MemoryOp.WRITE]
     assert first.recalled == []
 
     second = agent.chat("alice", "t2", "Write me a test.")
-    assert [r.memory.text for r in second.recalled] == ["I prefer pytest."]
+    assert [r.memory.text for r in second.recalled] == ["I prefer pytest"]
     assert second.recalled[0].memory.id == first.written[0].id
 
 
@@ -81,17 +83,33 @@ def test_memory_arm_requires_a_reader(settings: Settings, backend: Backend) -> N
         build_graph(StubChatModel(), checkpointer=backend.checkpointer, memory=True)
 
 
-def test_naive_writer_stores_a_contradiction_instead_of_resolving_it(
-    agent: Agent,
+def test_manager_resolves_a_contradiction_the_naive_writer_would_keep(
+    settings: Settings, backend: Backend
 ) -> None:
-    """Pins slice 1's central weakness so slice 2's fix is a visible diff.
+    """The headline behavioural difference between the two write paths.
 
-    When this starts failing, the memory manager is doing its job and this test
-    should be inverted rather than deleted.
+    Same conversation, same graph, one setting changed. The naive writer keeps
+    both sides of the contradiction — and would then recall both, answering with
+    a stale fact. The manager retires the old one.
     """
-    agent.chat("alice", "t1", "I'm on the payments team.")
-    agent.chat("alice", "t2", "I switched to the platform team.")
+    naive = Agent(
+        settings.model_copy(update={"memory_writer": "naive"}),
+        checkpointer=backend.checkpointer,
+        store=backend.store,
+    )
+    naive.chat("naive-user", "t1", "I'm on the payments team.")
+    naive.chat("naive-user", "t2", "I switched to the platform team.")
+    kept = [m.text for m in naive.reader.all_memories("naive-user") if m.is_active()]
+    assert len(kept) == 2
 
-    stored = [m.text for m in agent.reader.all_memories("alice") if m.is_active()]
-    assert "I'm on the payments team." in stored
-    assert "I switched to the platform team." in stored
+    manager = Agent(settings, checkpointer=backend.checkpointer, store=backend.store)
+    manager.chat("managed-user", "t1", "I'm on the payments team.")
+    manager.chat("managed-user", "t2", "I switched to the platform team.")
+
+    live = [m for m in manager.reader.all_memories("managed-user") if m.is_active()]
+    assert [m.value for m in live] == ["platform"]
+
+    # The contradicted fact is retired, not deleted — supersede with history.
+    retired = [m for m in manager.reader.all_memories("managed-user") if not m.is_active()]
+    assert [m.value for m in retired] == ["payments"]
+    assert retired[0].superseded_by == live[0].id

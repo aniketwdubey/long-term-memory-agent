@@ -31,9 +31,14 @@ jobs:
       - name: Test
         run: .venv/bin/pytest
 
-      # The regression gate. A prompt or policy change that lowers
-      # decision-relevant recall fails the build rather than merging quietly.
+      # The regression gate. Floors sit just under the current deterministic
+      # numbers (decision-relevant 0.80, conflict 0.43, precision 0.88), so a
+      # prompt or policy change that degrades the write path fails the build
+      # rather than merging quietly.
       - name: Benchmark
         run: |
           ENGRAM_LOG_LEVEL=WARNING .venv/bin/python -m engram.eval.runner \
-            eval/cases/slice1.jsonl --fail-under-decision 0.50
+            eval/cases/core.jsonl \
+            --fail-under-decision 0.75 \
+            --fail-under-conflict 0.40 \
+            --fail-under-precision 0.85

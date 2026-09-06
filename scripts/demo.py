@@ -1,12 +1,12 @@
-"""The demo: memory that survives a session boundary, and memory that doesn't.
+"""The demo: what the memory subsystem does across a week of conversation.
 
-Runs four acts against whatever backend is configured. Acts 1–3 are what slice 1
-set out to prove. Act 4 is a failure, on purpose — it shows the naive write path
-losing to a contradiction, which is the thing the memory manager has to fix, and
-it is more useful to watch than to be told about.
+Five acts against whatever backend is configured — chatter is ignored, a fact
+survives a session boundary, the thread transcript persists, a restatement does
+not duplicate, and a contradiction retires the fact it replaced.
 
     python scripts/demo.py                     # in-process, offline
     ENGRAM_STORE_BACKEND=postgres python scripts/demo.py
+    ENGRAM_MEMORY_WRITER=naive python scripts/demo.py   # the baseline, for contrast
 """
 
 from __future__ import annotations
@@ -34,17 +34,16 @@ def say(agent: Agent, thread: str, message: str) -> str:
     trace = agent.chat(USER, thread, message)
     print(f"  {DIM}[{thread}]{RESET} user  › {message}")
     print(f"  {DIM}[{thread}]{RESET} agent › {trace.reply}")
-    if trace.recalled:
-        print(
-            f"  {DIM}       recalled {len(trace.recalled)}: "
-            f"{'; '.join(r.memory.text for r in trace.recalled)}{RESET}"
-        )
+    for decision in trace.decisions:
+        detail = decision.reason or decision.candidate
+        print(f"  {DIM}       ↳ {decision.op.value.upper():<9} {detail}{RESET}")
+    if not trace.decisions and trace.written == []:
+        print(f"  {DIM}       ↳ IGNORED   nothing worth remembering{RESET}")
     return trace.reply
 
 
 def verdict(ok: bool, message: str) -> None:
-    mark = f"{GREEN}✓{RESET}" if ok else f"{RED}✗{RESET}"
-    print(f"  {mark} {message}")
+    print(f"  {GREEN}✓{RESET} {message}" if ok else f"  {RED}✗{RESET} {message}")
 
 
 def main() -> int:
@@ -53,14 +52,33 @@ def main() -> int:
 
     print(
         f"{BOLD}engram demo{RESET}  ·  store={settings.store_backend} "
-        f"· model={settings.chat_provider} · embedder={settings.embedder}"
+        f"· writer={settings.memory_writer} · model={settings.chat_provider} "
+        f"· embedder={settings.embedder}"
     )
 
     with open_backend(settings) as backend:
-        agent = Agent(settings, checkpointer=backend.checkpointer, store=backend.store)
+        agent = Agent(
+            settings,
+            checkpointer=backend.checkpointer,
+            store=backend.store,
+            embeddings=backend.embeddings,
+        )
 
-        act(1, "Monday — the user mentions something in passing")
+        # Start from a clean slate for this one demo user. Against Postgres the
+        # store survives the process, so without this a second `make demo` shows
+        # the previous run's memories and every count in the script is wrong.
+        stale = agent.reader.all_memories(USER)
+        for memory in stale:
+            backend.store.delete(memory.namespace(), memory.id)
+        if stale:
+            print(f"{DIM}(cleared {len(stale)} memories from a previous run){RESET}")
+
+        act(1, "Monday — a fact, buried in small talk")
+        say(agent, "monday", "Morning! The coffee machine is broken again.")
         say(agent, "monday", "I'm on the payments team and I prefer pytest for everything.")
+        say(agent, "monday", "Anyway, I should get back to it.")
+        stored = len(agent.reader.all_memories(USER))
+        verdict(stored < 3, f"kept {stored} memories from 3 turns — chatter was not stored")
 
         act(2, "Thursday — a brand new session, no shared transcript")
         reply = say(agent, "thursday", "Scaffold me a test for the refund endpoint.")
@@ -68,27 +86,43 @@ def main() -> int:
 
         act(3, "Thread memory is durable, and separate from long-term memory")
         print(f"  {DIM}transcript of 'monday', read back from the checkpointer:{RESET}")
-        for line in agent.history("monday"):
-            print(f"    {DIM}{line[:96]}{RESET}")
+        for line in agent.history("monday")[:4]:
+            print(f"    {DIM}{line[:92]}{RESET}")
         verdict(len(agent.history("monday")) >= 2, "the earlier thread persisted")
 
-        act(4, "Friday — the user contradicts themselves (slice 1 fails this)")
-        say(agent, "friday", "I've moved off payments — I'm on the platform team now.")
-        reply = say(agent, "monday-after", "Who should review my infrastructure change?")
-        stale = "payments" in reply.lower()
+        act(4, "The user repeats themselves")
+        before = len(agent.reader.all_memories(USER))
+        say(agent, "thursday", "Just so you know, I'm on the payments team.")
         verdict(
-            not stale,
-            "used the current fact and dropped the stale one"
-            if not stale
-            else "surfaced BOTH team facts — the naive writer stored the "
-            "contradiction instead of resolving it (this is what the memory "
-            "manager fixes next)",
+            len(agent.reader.all_memories(USER)) == before,
+            "recognised a fact it already knew — no duplicate written",
         )
 
-        total = len(agent.reader.all_memories(USER))
+        act(5, "Friday — the user contradicts themselves")
+        say(agent, "friday", "I'm on the platform team now.")
+        say(agent, "next-monday", "Who should review my infrastructure change?")
+
+        # Check what was *recalled*, not what the reply says. A correct system
+        # can still echo the old value if it happens to appear inside the new
+        # fact's wording ("I've moved off payments — I'm on platform now"), so
+        # substring-matching the answer would report a failure that isn't one.
+        recalled = agent.chat(USER, "next-monday", "Which team am I on again?").recalled
+        values = {r.memory.value for r in recalled}
+        verdict(
+            "payments" not in values,
+            f"recalled {sorted(v for v in values if v)} — the retired fact was not among them",
+        )
+
+        memories = agent.reader.all_memories(USER)
+        live = [m for m in memories if m.is_active()]
+        print(f"\n{BOLD}The store{RESET}  ({len(live)} live of {len(memories)} records)")
+        for m in memories:
+            mark = f"{GREEN}live   {RESET}" if m.is_active() else f"{DIM}retired{RESET}"
+            slot = f"{m.attribute}={m.value}" if m.attribute else "(unslotted)"
+            print(f"  {mark} {slot:<28} {m.text[:56]}")
         print(
-            f"\n{DIM}{total} memories stored for {USER}. Every turn was kept "
-            f"verbatim — precision is the other thing slice 2 fixes.{RESET}"
+            f"\n{DIM}Retired records are kept, not deleted — supersede with history, "
+            f"so the store can explain what it used to believe.{RESET}"
         )
 
     return 0

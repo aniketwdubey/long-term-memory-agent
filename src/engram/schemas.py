@@ -92,6 +92,23 @@ class Memory(BaseModel):
     superseded_by: str | None = None
     superseded_at: datetime | None = None
 
+    # --- the slot a fact occupies -----------------------------------------
+    # Conflict resolution is a question about *slots*: "I switched to the
+    # platform team" contradicts "I'm on the payments team" because both fill
+    # `team`, and it does not contradict "I prefer pytest" because that fills
+    # something else. Storing the slot explicitly turns the hardest decision in
+    # the write path from a judgement call into a lookup — the model normalises
+    # a turn into (attribute, value), and policy code does the rest.
+    #
+    # An empty attribute means "unslotted": a fact worth keeping that does not
+    # occupy a named slot. Unslotted facts never supersede anything; they are
+    # deduplicated by similarity instead.
+    attribute: str = ""
+    value: str = ""
+    # An optional qualifier that lets two values of the same attribute both be
+    # true — a work address and a home address are not a contradiction.
+    scope: str = ""
+
     # Where it came from, for tracing and for "forget everything from session X".
     thread_id: str | None = None
     evidence: str | None = Field(
@@ -105,6 +122,10 @@ class Memory(BaseModel):
         if self.expires_at is None:
             return True
         return self.expires_at > (now or utcnow())
+
+    def slot(self) -> tuple[str, str]:
+        """The (attribute, scope) pair this fact occupies. Empty when unslotted."""
+        return (self.attribute, self.scope)
 
     def namespace(self) -> tuple[str, str]:
         """The store namespace this record lives in."""

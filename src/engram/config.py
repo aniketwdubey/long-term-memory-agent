@@ -17,6 +17,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 ChatProvider = Literal["stub", "bedrock"]
 EmbedderName = Literal["hashing", "fastembed", "bedrock"]
 StoreBackend = Literal["memory", "postgres"]
+WriterName = Literal["naive", "manager"]
 LogFormat = Literal["console", "json"]
 
 
@@ -64,6 +65,15 @@ class Settings(BaseSettings):
     # PostgresStore, both from LangGraph itself.
     store_backend: StoreBackend = "memory"
     postgres_dsn: str = "postgresql://engram:engram@localhost:5432/engram"
+
+    # --- Memory write path -------------------------------------------------
+    # `manager` extracts, dedupes, resolves conflicts and decays. `naive` stores
+    # every turn verbatim and exists so the benchmark can run it as a control —
+    # the manager's improvement should be a measured delta, not a claim.
+    memory_writer: WriterName = "manager"
+    # Cosine similarity above which two unslotted facts are the same fact.
+    # Slotted facts do not use this: they dedupe on the slot's value.
+    dedupe_similarity: float = Field(default=0.9, ge=0.0, le=1.0)
 
     # --- Retrieval ---------------------------------------------------------
     # Only a handful of memories are injected per turn — the whole point is to

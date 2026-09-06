@@ -9,10 +9,9 @@ that the hard part of memory is not reading it back but deciding what to write.
 > solved feature. This repository is that layer, built and benchmarked in the
 > open, including where it fails.
 
-**Status: slice 1 of 4.** The agent, both stores, the read path, and the
-benchmark are built and measured. The memory manager that this slice exists to
-justify — extraction, dedupe, conflict resolution, decay — is slice 2. The
-numbers below are the baseline it has to beat, not a finished result.
+**Status: slice 2 of 4.** The agent, both stores, the read path, the benchmark,
+and the **memory manager** — extraction, dedupe, conflict resolution, decay —
+are built and measured. The injection gate and "forget me" are slice 3.
 
 ---
 
@@ -49,11 +48,12 @@ none of them.
         │
         ▼
   ③ REMEMBER ──────────► the write path
-        │                  ├─ extract candidate facts        ┐
-        │                  ├─ dedupe against what is known   │ slice 2
-        │                  ├─ resolve contradictions         │
-        │                  ├─ score importance, set decay    ┘
-        │                  └─ injection gate: only trusted     ─ slice 3
+        │                  ├─ extract  → (attribute, value) slots   ┐
+        │                  ├─ dedupe   → same slot, same value      │ built
+        │                  ├─ resolve  → same slot, new value:      │
+        │                  │             supersede, keep history    │
+        │                  ├─ decay    → TTL on temporary states    ┘
+        │                  └─ injection gate: only trusted            slice 3
         │                     (user-authored) content may write
         ▼
   ┌──────────────────────────────────────────────────────────┐
@@ -87,45 +87,51 @@ it is what makes a fact stated on Monday available on Thursday.
 
 ## Benchmark
 
-26 hand-authored cases in `eval/cases/slice1.jsonl`. Each gives a user ~30
-sessions' worth of ordinary chatter with a fact buried in it, then asks a probe
-**in a brand-new thread** — so the only path from the fact to the answer is
-long-term memory. Both arms are compiled from the same graph with `memory`
-flipped, so the comparison isolates one variable.
+26 hand-authored cases in `eval/cases/core.jsonl`. Each gives a user six sessions
+of ordinary chatter, **seven unrelated real facts**, and the fact the probe
+depends on — then asks the probe **in a brand-new thread**, so the only path from
+fact to answer is long-term memory. All three arms are compiled from the same
+graph, so a difference between columns is a difference in the write path and
+nothing else.
 
 ```
 make eval            # deterministic config — this is the CI gate
 make eval-semantic   # real sentence embeddings
 ```
 
-| Metric | Stateless | Memory (naive writer) | |
+| Metric | Stateless | Naive writer | **Memory manager** |
 |---|---|---|---|
-| Passive recall (n=9) | 0.0% | **100.0%** | probe names the fact |
-| **Decision-relevant recall (n=10)** | 0.0% | **70.0%** | ← the headline |
-| Conflict resolution (n=7) | 0.0% | **28.6%** | a later session contradicts an earlier one |
-| Memory recall — kept the facts | 0.0% | 100.0% | |
-| Memory precision — kept *only* facts | 0.0% | **3.2%** | |
-| Avg memories injected / turn | 0.0 | 5.0 | out of ~31 stored |
+| Passive recall (n=9) | 0.0% | 100.0% | **100.0%** |
+| **Decision-relevant recall (n=10)** | 0.0% | 60.0% | **80.0%** |
+| Conflict resolution (n=7) | 0.0% | 14.3% | **85.7%** |
+| Overall (n=26) | 0.0% | 61.5% | **88.5%** |
+| Memory recall — kept the facts | 0.0% | 96.3% | 96.3% |
+| Memory precision — kept *only* facts | 0.0% | 25.0% | **88.3%** |
+| Memories stored per user | 0.0 | 28.0 | **7.9** |
 
 <sub>`--embedder fastembed`. With the deterministic `hashing` embedder used in
-CI: passive 66.7%, decision-relevant 50.0%, conflict 14.3%.</sub>
+CI: passive 77.8 / 100, decision-relevant 60.0 / 80.0, conflict 14.3 / 42.9,
+precision 25.0 / 88.3 (naive / manager).</sub>
 
-**Read the shape, not the headline.** Passive recall saturates at 100% while
-decision-relevant recall drops to 70% — that is the same gap published memory
-benchmarks report, reproduced here on a system whose internals are inspectable.
-And two numbers are outright bad on purpose:
+**What the write path bought.** Conflict resolution went from 14.3% to 85.7% and
+precision from 25% to 88.3%, while the store shrank from 28 records per user to
+7.9. Those move together and that is the mechanism, not a coincidence: the naive
+writer keeps every turn, so the five top-k slots fill with "the coffee machine is
+broken again" and with facts the user has since contradicted. Storing less is how
+the manager recalls better.
 
-* **Conflict resolution, 28.6%.** The naive writer stores "I'm on the payments
-  team" *and* "I switched to the platform team", recalls both, and answers with
-  both. On a contradiction the agent is now **less** reliable than having no
-  memory at all, because it surfaces the stale fact with total confidence.
-* **Memory precision, 3.2%.** Storing every turn verbatim means ~31 records per
-  user of which one carries a fact. The rest is "the coffee machine is broken
-  again", competing for the same five top-k slots.
+The conflict number is the one worth dwelling on. A store that keeps both "I'm on
+the payments team" and "I switched to the platform team" makes the agent **less**
+reliable than having no memory at all, because it will surface the stale fact
+with total confidence. Superseding — writing the new fact and retiring the old
+one, with history — is what closes that.
 
-Both are what slice 2 fixes, and both now have a number attached rather than an
-argument. That was the point of building the benchmark before the memory
-manager: the improvement gets to be measured instead of asserted.
+**Where it still fails.** Decision-relevant recall is 80%, and every remaining
+failure is a *retrieval* miss, not a write-path bug: the right fact is stored and
+live, but "how should I set up my editor?" does not retrieve "I use Neovim"
+because the two share no vocabulary. That is the read path's problem and the next
+thing worth attacking. Passive recall saturating at 100% while decision-relevant
+sits at 80% is the same gap published memory benchmarks report.
 
 ---
 
@@ -136,7 +142,7 @@ Runs fully offline — no AWS account, no API key, no network.
 ```bash
 make install    # venv + deps (uses uv when present)
 make demo       # cross-session recall, in-process
-make test       # 56 tests, no network
+make test       # 112 tests, no network
 make eval       # the benchmark table above
 ```
 
@@ -171,7 +177,9 @@ Every default is offline.
 | `ENGRAM_CHAT_PROVIDER` | `stub` | `stub` \| `bedrock` |
 | `ENGRAM_EMBEDDER` | `hashing` | `hashing` \| `fastembed` \| `bedrock` |
 | `ENGRAM_STORE_BACKEND` | `memory` | `memory` \| `postgres` |
+| `ENGRAM_MEMORY_WRITER` | `manager` | `manager` \| `naive` (the benchmark's control arm) |
 | `ENGRAM_RECALL_TOP_K` | `5` | memories injected per turn |
+| `ENGRAM_DEDUPE_SIMILARITY` | `0.9` | cosine above which two unslotted facts are one fact |
 | `ENGRAM_BEDROCK_MODEL_ID` | `us.anthropic.claude-haiku-4-5-…` | cheap tier: extraction, dedupe triage |
 | `ENGRAM_BEDROCK_REASONING_MODEL_ID` | same | point at a larger model for conflict resolution |
 
@@ -196,28 +204,53 @@ offline via ONNX, no torch, ~130MB downloaded once.
 
 ---
 
-## What slice 1 establishes
+## The write path
+
+Every candidate fact goes through four decisions, in order:
+
+| Step | Decision | Where it lives |
+|---|---|---|
+| **Extract** | Is anything here worth keeping, and what slot does it fill? | `memory/extract.py` — **LLM** |
+| **Dedupe** | Same slot, same value → reinforce, don't copy | `memory/manager.py` — policy |
+| **Resolve** | Same slot, *different* value → supersede, keep history | `memory/manager.py` — policy |
+| **Decay** | Explicitly temporary states get a TTL | `memory/manager.py` — policy |
+
+The design decision worth defending: **only extraction uses a model.** It turns
+"I switched to the platform team" into `team = platform`, which is exactly the
+normalisation LLMs are good at. Once a fact is in that shape, "does this
+contradict something I know?" stops being a judgement call and becomes a lookup
+on `(attribute, scope)` — so conflict resolution is deterministic policy code
+that is unit-testable and behaves identically whether the extractor was Claude or
+the offline fixture. Asking a model to adjudicate every write would be slower,
+costlier, and impossible to pin down in a test.
+
+Facts the extractor cannot slot are still kept; they simply never supersede
+anything, and dedupe falls back to embedding similarity.
+
+### What is established
 
 - [x] Thread memory + long-term memory via LangGraph, durable across process restarts (verified against pgvector, not just in-process)
-- [x] Per-user memory isolation
-- [x] Top-k recall — memory that outlives the context window
-- [x] Memory-op tracing: what was recalled and written, per turn
-- [x] A benchmark with a stateless control arm, and a CI regression gate
-- [x] Provenance and decay fields on every record from the first write
-- [x] Offline by default; `make up` for the real store; typed, `mypy --strict` clean
+- [x] Per-user isolation; top-k recall that outlives the context window
+- [x] Extraction that ignores chatter — 28 records per user down to 7.9
+- [x] Dedupe on restatement, with importance reinforcement
+- [x] **Conflict resolution: supersede with history**, retired records kept and never recalled
+- [x] TTL/decay on explicitly temporary states
+- [x] Full memory-op tracing — every `WRITE` / `DEDUPE` / `SUPERSEDE` per turn
+- [x] A three-arm benchmark and a CI regression gate
+- [x] Offline by default; typed, `mypy --strict` clean
 
-Provenance and expiry are recorded but **not yet enforced** — nothing consults
-them at write time. They exist now because retrofitting provenance onto a store
-already full of unattributed facts is a migration nobody wants to run.
+Provenance is recorded on every write but **not yet enforced** — nothing consults
+it, so untrusted content can still become a memory. That is slice 3, and the
+field exists now so the gate does not have to migrate a store full of
+unattributed facts.
 
 ### Not built yet
 
 | Slice | Work |
 |---|---|
-| 2 | The memory manager: extraction → dedupe → **conflict resolution** → importance + decay |
 | 3 | Injection gate (untrusted content may not write user memory), "forget me" hard delete |
 | 4 | mem0 / LangMem as a managed baseline on the same benchmark |
-| later | FastAPI + SSE, real LoCoMo loader, OpenTelemetry, teardownable CDK stack |
+| later | Retrieval quality (every remaining failure is a recall miss), FastAPI + SSE, real LoCoMo loader, OpenTelemetry, teardownable CDK stack |
 
 ---
 
@@ -234,10 +267,12 @@ src/engram/
   graph.py        recall → respond → remember, and the Agent wrapper
   memory/
     read.py       semantic recall, filtered to live memories
-    write.py      the naive baseline + the MemoryWriter seam slice 2 fills
+    extract.py    turn -> candidate facts with (attribute, value) slots
+    manager.py    dedupe, conflict resolution, decay — the write path
+    write.py      the MemoryWriter contract + the naive baseline
   eval/           cases, metrics, runner
 eval/cases/       the committed benchmark
-tests/            56 offline tests + Postgres durability tests
+tests/            112 offline tests + Postgres durability tests
 ```
 
 ---
@@ -267,3 +302,19 @@ all stale still gets live results instead of an empty recall.
 
 **The write node runs after the response.** A fact learned from this turn should
 not be recalled into the answer to that same turn.
+
+**Sentence splitting stops at terminators, not em dashes.** Splitting on "—" tore
+"I've moved off payments — I'm on the platform team now" into two candidates, and
+the dangling first half was stored as an unslotted fact still carrying the stale
+value — so the contradiction survived being resolved. Only the demo caught it.
+
+**Decay is unit-tested, not benchmarked.** The benchmark has no time axis, so a
+7-day TTL never lapses during a run. Expiry is covered in `tests/test_manager.py`
+instead; claiming a decay score from a benchmark that cannot advance the clock
+would be dishonest.
+
+**A substring check can fail a correct answer.** If the new fact's own wording
+contains the old value, `reject_any` trips even though memory did the right
+thing. The cases are worded to avoid it and the demo asserts on what was
+*recalled* rather than on the reply text — but it is a real limit of blunt
+scoring, and the reason an LLM judge eventually earns its place for live runs.

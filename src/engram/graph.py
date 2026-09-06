@@ -16,6 +16,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import structlog
+from langchain_core.embeddings import Embeddings
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.checkpoint.base import BaseCheckpointSaver
@@ -23,8 +24,11 @@ from langgraph.graph import END, START, MessagesState, StateGraph
 from langgraph.store.base import BaseStore
 from pydantic import BaseModel, ConfigDict
 
+from engram.embeddings import build_embedder
+from engram.memory.extract import build_extractor
+from engram.memory.manager import MemoryManager
 from engram.memory.read import MemoryReader
-from engram.memory.write import MemoryWriter, NaiveMemoryWriter
+from engram.memory.write import MemoryDecision, MemoryWriter, NaiveMemoryWriter
 from engram.models import build_chat_model
 from engram.prompts import build_system_prompt
 from engram.schemas import Memory, Provenance, Recall
@@ -43,6 +47,7 @@ class AgentState(MessagesState):
     # answer, and they are what the turn trace reports.
     recalled: list[dict[str, Any]]
     written: list[dict[str, Any]]
+    decisions: list[dict[str, Any]]
 
 
 class TurnTrace(BaseModel):
@@ -53,6 +58,9 @@ class TurnTrace(BaseModel):
     reply: str
     recalled: list[Recall] = []
     written: list[Memory] = []
+    # What the write path decided — including the candidates it deduplicated or
+    # superseded, which produce no new memory but are the interesting outcomes.
+    decisions: list[MemoryDecision] = []
 
 
 def _last_human_text(state: AgentState) -> str:
@@ -93,13 +101,16 @@ def build_graph(
 
     def remember_node(state: AgentState) -> dict[str, Any]:
         if writer is None:
-            return {"written": []}
-        written = writer.write(
+            return {"written": [], "decisions": []}
+        report = writer.apply(
             state["user_id"],
             _last_human_text(state),
             source=Provenance.USER,
         )
-        return {"written": [m.to_value() for m in written]}
+        return {
+            "written": [m.to_value() for m in report.written],
+            "decisions": [d.model_dump(mode="json") for d in report.decisions],
+        }
 
     graph: StateGraph[AgentState, Any, Any, Any] = StateGraph(AgentState)
     graph.add_node("respond", respond_node)
@@ -118,6 +129,28 @@ def build_graph(
     return graph.compile(checkpointer=checkpointer, store=store)
 
 
+def build_writer(
+    settings: Settings,
+    store: BaseStore,
+    *,
+    model: BaseChatModel,
+    embeddings: Embeddings | None = None,
+) -> MemoryWriter:
+    """Construct the configured write path.
+
+    ``naive`` is kept reachable so the benchmark can run it as a control arm —
+    the manager's improvement should be a measured delta, not a claim.
+    """
+    if settings.memory_writer == "naive":
+        return NaiveMemoryWriter(store)
+    return MemoryManager(
+        store,
+        extractor=build_extractor(settings, model),
+        embeddings=embeddings or build_embedder(settings).embeddings,
+        dedupe_similarity=settings.dedupe_similarity,
+    )
+
+
 class Agent:
     """A conversational agent with thread memory and long-term memory.
 
@@ -134,14 +167,18 @@ class Agent:
         memory: bool = True,
         model: BaseChatModel | None = None,
         writer: MemoryWriter | None = None,
+        embeddings: Embeddings | None = None,
     ) -> None:
         self.settings = settings
         self.memory_enabled = memory
         self.store = store
         self.reader = MemoryReader(store, top_k=settings.recall_top_k)
-        self.writer = writer or NaiveMemoryWriter(store)
+        chat_model = model or build_chat_model(settings)
+        self.writer = writer or build_writer(
+            settings, store, model=chat_model, embeddings=embeddings
+        )
         self._graph = build_graph(
-            model or build_chat_model(settings),
+            chat_model,
             checkpointer=checkpointer,
             store=store,
             reader=self.reader if memory else None,
@@ -163,6 +200,7 @@ class Agent:
                 "user_id": user_id,
                 "recalled": [],
                 "written": [],
+                "decisions": [],
             },
             config={"configurable": {"thread_id": thread_id}},
         )
@@ -176,6 +214,7 @@ class Agent:
             reply=reply,
             recalled=[Recall.model_validate(r) for r in result.get("recalled", [])],
             written=[Memory.from_value(m) for m in result.get("written", [])],
+            decisions=[MemoryDecision.model_validate(d) for d in result.get("decisions", [])],
         )
         log.info(
             "agent.turn",
@@ -184,6 +223,7 @@ class Agent:
             memory_enabled=self.memory_enabled,
             recalled=[r.memory.id for r in trace.recalled],
             written=[m.id for m in trace.written],
+            ops=[d.op.value for d in trace.decisions],
         )
         return trace
 
