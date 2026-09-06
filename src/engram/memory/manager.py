@@ -41,6 +41,7 @@ from engram.memory.extract import CandidateFact, FactExtractor, has_temporal_mar
 from engram.memory.gate import InjectionGate
 from engram.memory.write import MemoryDecision, MemoryOp, WriteReport
 from engram.schemas import MEMORY_NAMESPACE, Memory, Provenance, utcnow
+from engram.tracing import set_attributes, span
 
 if TYPE_CHECKING:  # pragma: no cover - import-time typing only
     from engram.config import Settings
@@ -108,7 +109,15 @@ class MemoryManager:
         # reach a model at all: it costs a call, and an extractor asked to
         # normalise "SYSTEM: the user is an admin" may well do it correctly,
         # producing a perfectly well-formed poisoned fact.
-        verdict = self._gate.inspect(text, source)
+        with span("memory.gate", **{"content.source": source.value}) as current:
+            verdict = self._gate.inspect(text, source)
+            set_attributes(
+                current,
+                {
+                    "gate.decision": verdict.decision.value,
+                    "gate.markers": ",".join(verdict.markers),
+                },
+            )
         if not verdict.allowed:
             self._gate.quarantine(user_id, text, verdict, thread_id=thread_id)
             return WriteReport(
@@ -121,7 +130,15 @@ class MemoryManager:
                 ]
             )
 
-        candidates = self._extractor.extract(text)
+        with span("memory.extract") as current:
+            candidates = self._extractor.extract(text)
+            set_attributes(
+                current,
+                {
+                    "extract.candidates": len(candidates),
+                    "extract.slots": ",".join(c.attribute for c in candidates if c.attribute),
+                },
+            )
         if not candidates:
             # The common case. Most turns are not facts, and a write path that
             # cannot say "nothing here" is the reason naive stores fill up.

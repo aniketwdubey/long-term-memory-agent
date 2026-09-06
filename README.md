@@ -258,6 +258,7 @@ Every default is offline.
 | `ENGRAM_MEMORY_WRITER` | `manager` | `manager` \| `naive` (the benchmark's control arm) |
 | `ENGRAM_RECALL_TOP_K` | `5` | memories injected per turn |
 | `ENGRAM_DEDUPE_SIMILARITY` | `0.9` | cosine above which two unslotted facts are one fact |
+| `ENGRAM_OTEL_EXPORTER` | `none` | `none` \| `console` \| `otlp` — tracing, off by default |
 | `ENGRAM_BEDROCK_MODEL_ID` | `amazon.nova-lite-v1:0` | extraction and responses |
 | `ENGRAM_BEDROCK_REASONING_MODEL_ID` | `amazon.nova-pro-v1:0` | unused today; the knob for judgement-heavy work |
 
@@ -535,6 +536,32 @@ The part worth noticing is that **the naive arm did not move at all** — 53.1%
 before and after. It stores turns verbatim, so it has no slots to index, and the
 same change buys it nothing. The retrieval win is not free: it is paid for by
 the write path having bothered to work out what each fact is about.
+
+**Tracing is off by default, and OpenTelemetry rather than LangSmith.** The
+interesting thing to trace here is not latency — it is what the write path
+decided. A turn that deduped wrote nothing, and a span reporting only
+"0 written" would make that indistinguishable from a turn where nothing
+happened, which is exactly the case you need when explaining a store that has
+drifted. So the spans carry decisions:
+
+```
+memory.recall     recalled.count=1  recalled.slots=team
+memory.gate       source=user       decision=allow
+memory.extract    candidates=1      slots=team
+memory.remember   written.count=1   decisions=supersede  superseded.count=1
+```
+
+LangSmith would have been close to free effort for a LangGraph app, but it is a
+third-party SaaS, and shipping a user's stored personal facts to one — in a
+project whose entire subject is careful handling of that data — is the wrong
+trade. OTel is vendor-neutral: the same spans go to Jaeger, a self-hosted
+Langfuse, or CloudWatch via ADOT, and none of it needs an account. With no
+exporter configured the API hands back a no-op tracer, so nothing leaves the
+process and the instrumentation costs an attribute lookup.
+
+```bash
+make trace-demo    # spans to the console
+```
 
 **Recall over-fetches before filtering.** Expired and superseded memories are
 removed after the store returns its matches, so a user whose closest matches are

@@ -20,6 +20,7 @@ from engram.config import Settings, get_settings
 from engram.graph import Agent
 from engram.logging import configure_logging
 from engram.store import open_backend
+from engram.tracing import configure_tracing
 
 log = structlog.get_logger(__name__)
 
@@ -28,6 +29,7 @@ log = structlog.get_logger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = getattr(app.state, "settings", None) or get_settings()
     configure_logging(settings)
+    configure_tracing(settings)
 
     with ExitStack() as stack:
         backend = stack.enter_context(open_backend(settings))

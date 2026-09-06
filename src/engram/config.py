@@ -19,6 +19,7 @@ EmbedderName = Literal["hashing", "fastembed", "bedrock"]
 StoreBackend = Literal["memory", "postgres"]
 WriterName = Literal["naive", "manager"]
 LogFormat = Literal["console", "json"]
+OtelExporter = Literal["none", "console", "otlp"]
 
 
 class Settings(BaseSettings):
@@ -86,6 +87,16 @@ class Settings(BaseSettings):
     # Only a handful of memories are injected per turn — the whole point is to
     # stay cheap as the store grows past what a context window could hold.
     recall_top_k: int = Field(default=5, ge=1, le=50)
+
+    # --- Tracing -----------------------------------------------------------
+    # Off by default, and genuinely off: with no provider configured the OTel
+    # API hands back a no-op tracer. For a system holding personal facts,
+    # "nothing leaves the process unless asked" is the only sane default.
+    # `console` prints spans; `otlp` ships them to a collector — Jaeger, a
+    # self-hosted Langfuse, or CloudWatch via ADOT.
+    otel_exporter: OtelExporter = "none"
+    otel_endpoint: str = ""
+    otel_service_name: str = "engram"
 
     # --- Logging -----------------------------------------------------------
     log_level: str = "INFO"

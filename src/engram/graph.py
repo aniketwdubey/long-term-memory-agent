@@ -34,6 +34,7 @@ from engram.memory.write import MemoryDecision, MemoryWriter, NaiveMemoryWriter,
 from engram.models import build_chat_model
 from engram.prompts import build_system_prompt
 from engram.schemas import Memory, Provenance, Recall
+from engram.tracing import set_attributes, span
 
 if TYPE_CHECKING:  # pragma: no cover - import-time typing only
     from engram.config import Settings
@@ -96,24 +97,48 @@ def build_graph(
 
     def recall_node(state: AgentState) -> dict[str, Any]:
         assert reader is not None
-        recalls = reader.recall(state["user_id"], _last_human_text(state))
+        with span("memory.recall", **{"user.id": state["user_id"]}) as current:
+            recalls = reader.recall(state["user_id"], _last_human_text(state))
+            set_attributes(
+                current,
+                {
+                    "memory.recalled.count": len(recalls),
+                    "memory.recalled.ids": ",".join(r.memory.id for r in recalls),
+                    "memory.recalled.slots": ",".join(
+                        r.memory.attribute for r in recalls if r.memory.attribute
+                    ),
+                },
+            )
         return {"recalled": [r.model_dump(mode="json") for r in recalls]}
 
     def respond_node(state: AgentState) -> dict[str, Any]:
         recalls = [Recall.model_validate(r) for r in state.get("recalled", [])]
-        prompt = [SystemMessage(content=build_system_prompt(recalls)), *state["messages"]]
-        reply = model.invoke(prompt)
+        with span("memory.respond", **{"memory.injected.count": len(recalls)}):
+            prompt = [SystemMessage(content=build_system_prompt(recalls)), *state["messages"]]
+            reply = model.invoke(prompt)
         return {"messages": [reply]}
 
     def remember_node(state: AgentState) -> dict[str, Any]:
         if writer is None:
             return {"written": [], "decisions": []}
-        report = writer.apply(
-            state["user_id"],
-            _last_human_text(state),
-            thread_id=state.get("thread_id"),
-            source=Provenance.USER,
-        )
+        with span("memory.remember", **{"user.id": state["user_id"]}) as current:
+            report = writer.apply(
+                state["user_id"],
+                _last_human_text(state),
+                thread_id=state.get("thread_id"),
+                source=Provenance.USER,
+            )
+            # The decisions are the interesting part: a turn that deduped or
+            # superseded wrote nothing, and a span reporting only "0 written"
+            # would make that look like a turn where nothing happened.
+            set_attributes(
+                current,
+                {
+                    "memory.written.count": len(report.written),
+                    "memory.decisions": ",".join(d.op.value for d in report.decisions),
+                    "memory.superseded.count": sum(len(d.superseded_ids) for d in report.decisions),
+                },
+            )
         return {
             "written": [m.to_value() for m in report.written],
             "decisions": [d.model_dump(mode="json") for d in report.decisions],
