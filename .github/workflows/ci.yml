@@ -1,0 +1,39 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          uv venv .venv
+          uv pip install --python .venv/bin/python -e ".[dev]"
+
+      - name: Lint
+        run: |
+          .venv/bin/ruff check src tests scripts
+          .venv/bin/ruff format --check src tests scripts
+          .venv/bin/mypy src
+
+      # No credentials and no network: the stub model and the deterministic
+      # hashing embedder are the defaults.
+      - name: Test
+        run: .venv/bin/pytest
+
+      # The regression gate. A prompt or policy change that lowers
+      # decision-relevant recall fails the build rather than merging quietly.
+      - name: Benchmark
+        run: |
+          ENGRAM_LOG_LEVEL=WARNING .venv/bin/python -m engram.eval.runner \
+            eval/cases/slice1.jsonl --fail-under-decision 0.50
