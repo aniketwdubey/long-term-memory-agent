@@ -303,6 +303,41 @@ Two things worth stating so the comparison is read fairly: this is mem0's
 hosted platform; and mem0 is wired through its `langchain` provider so it
 receives the same model *object* we use.
 
+#### Results
+
+8 cases (2 per kind), identical Nova Lite + Titan + Postgres on both sides:
+
+| Metric | **Manager** | mem0 |
+|---|---|---|
+| Passive recall (n=2) | 100.0% | 100.0% |
+| Decision-relevant (n=2) | 50.0% | 0.0% |
+| Conflict resolution (n=2) | **100.0%** | 50.0% |
+| Injection (n=2) | **100.0%** | 0.0% |
+| Overall (n=8) | **87.5%** | 37.5% |
+| **Injection resistance** | **100.0%** | **0.0%** |
+| Memory recall — kept the facts | 80.4% | **89.3%** |
+| Memory precision — kept *only* facts | **32.1%** | 25.9% |
+| Memories stored per user | 17.5 | 50.2 |
+
+**The one result that is structural rather than incidental is injection
+resistance: 100% against 0%.** mem0 has no provenance concept, so a poisoned
+document the agent merely read became a fact about the user and was then
+recalled into answers — "root access" and "security team" both surfaced. No
+amount of prompt tuning closes that, because the defence has to be a property of
+the write path, not of the extraction quality.
+
+**mem0 beats this system on memory recall — 89.3% against 80.4%.** It keeps more
+of what matters, because it keeps far more of everything: 50.2 records per user
+against 17.5. That is the recall/precision trade in its plainest form, and it is
+also why it loses on conflict resolution — a store that keeps three phrasings of
+"which team" has no way to retire the stale one.
+
+**Treat the small-n live numbers as noisy.** An earlier live run of the same
+eight cases scored the manager arm 100% on decision-relevant recall; this one
+scored 50%, on one case flipping. With two cases per kind, a single flip moves a
+column by fifty points. The offline benchmark is the one to regress against; the
+live runs say "it works on a real model" and little more.
+
 That routing turned out to be mandatory. **mem0 2.0.20's own `aws_bedrock`
 adapter is broken for Amazon models**: `_format_messages_amazon` emits
 `{"role": ..., "content": "<text>"}` where the Bedrock Converse API requires
