@@ -10,3 +10,6 @@ dist/
 .env
 .DS_Store
 infra/cdk.out/
+
+# Third-party benchmark data, fetched not vendored (see scripts/fetch_locomo.py)
+data/

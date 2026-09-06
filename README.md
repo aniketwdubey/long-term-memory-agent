@@ -289,6 +289,47 @@ costlier, and impossible to pin down in a test.
 Facts the extractor cannot slot are still kept; they simply never supersede
 anything, and dedupe falls back to embedding similarity.
 
+### LoCoMo — somebody else's benchmark
+
+Every number above is scored on cases written here, which is worth about as much
+as any exam written by the person sitting it. [LoCoMo](https://github.com/snap-research/locomo)
+is public and much longer: 10 conversations, ~5.9k turns, ~2k questions, up to 19
+sessions and 400+ turns each.
+
+```bash
+make locomo        # fetches the dataset, runs one conversation offline
+make locomo-live   # real Bedrock + an LLM judge
+```
+
+The dataset is fetched, not vendored — it is 2.8MB and carries its own licence
+terms. It runs **beside** the hand-authored benchmark rather than replacing it,
+for three reasons worth being explicit about:
+
+* **It is judged, so it cannot gate CI.** Gold answers are free-form
+  ("The sunday before 25 May 2023"), and an agent that says "the Sunday before
+  the 25th of May" is right. Grading that needs a model, and a model makes the
+  score non-deterministic.
+* **It has no conflict or injection questions.** The two properties this project
+  is actually about have no LoCoMo counterpart.
+* **It annotates evidence turns, not facts worth keeping**, so the store-side
+  precision and recall metrics have nothing to score against.
+
+Two details the format hides, both of which would have produced a wrong number:
+
+**`adversarial_answer` is a trap, not a gold answer.** Category 5 (446 of ~2000
+questions) carries a false premise — usually attributing something to the wrong
+speaker — and that field holds the plausible answer you give if you fail to
+notice. *"What did **Caroline** realise after her charity race?"* → *"self-care
+is important"*, which is a thing **Melanie** realised. The correct response is to
+decline, and the official evaluation scores exactly that. Reading the field as
+gold would have scored every correct refusal wrong and every credulous answer
+right — inverting the metric across a fifth of the dataset.
+
+**Sessions must be ordered numerically.** `session_10` sorts before `session_2`
+as a string, and replaying a conversation out of order silently corrupts every
+contradiction it contains — for a system whose whole job is "what is true *now*",
+that is the worst possible way to be wrong.
+
 ### The managed baseline
 
 `mem0` runs as a fourth arm, on identical footing: the same Nova model, the same
