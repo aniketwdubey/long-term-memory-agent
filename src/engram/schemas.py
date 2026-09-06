@@ -131,9 +131,33 @@ class Memory(BaseModel):
         """The store namespace this record lives in."""
         return (MEMORY_NAMESPACE, self.user_id)
 
+    def slot_text(self) -> str:
+        """The slot rendered as searchable words, e.g. "editor neovim".
+
+        Retrieval indexes this alongside the fact text. It matters because a
+        query usually names the *kind* of thing it wants rather than the answer:
+        "how should I set up my editor?" shares no vocabulary with "I use
+        Neovim", but it shares a great deal with the slot key `editor`. The
+        write path already worked out that this fact is about an editor, so the
+        read path may as well use it.
+        """
+        if not self.attribute:
+            return ""
+        return f"{self.attribute.replace('_', ' ')} {self.value}".strip()
+
     def to_value(self) -> dict[str, Any]:
-        """Serialise for the store (JSON-safe: datetimes become ISO strings)."""
-        return self.model_dump(mode="json")
+        """Serialise for the store (JSON-safe: datetimes become ISO strings).
+
+        Adds the derived ``slot_text`` for the vector index. It is omitted
+        entirely for unslotted facts rather than written as an empty string —
+        an empty string still embeds, and every unslotted memory would then
+        share one identical vector for a query to collide with.
+        """
+        value = self.model_dump(mode="json")
+        slot = self.slot_text()
+        if slot:
+            value["slot_text"] = slot
+        return value
 
     @classmethod
     def from_value(cls, value: dict[str, Any]) -> Memory:

@@ -101,6 +101,52 @@ def test_recall_overfetches_so_stale_matches_do_not_starve_results(
     assert [r.memory.text for r in recalls] == ["deployment happens with Terraform"]
 
 
+def test_a_query_naming_the_slot_finds_a_fact_it_shares_no_words_with(
+    backend: Backend,
+) -> None:
+    """The read path cashing in what the write path worked out.
+
+    "How should I set up my editor?" and "I use Neovim" have no vocabulary in
+    common, so text-only retrieval buries the answer under chatter. The slot key
+    `editor` is the bridge — and it exists only because extraction produced it.
+    """
+    for text, attribute, value in [
+        ("I use Neovim", "editor", "neovim"),
+        ("I had a great coffee this morning near the office", "", ""),
+        ("We finally shipped the dashboard on Friday", "", ""),
+        ("My sister is visiting from Toronto", "", ""),
+    ]:
+        m = Memory(user_id="alice", text=text, attribute=attribute, value=value)
+        backend.store.put(m.namespace(), m.id, m.to_value())
+
+    recalls = MemoryReader(backend.store, top_k=1).recall(
+        "alice", "How should I set up my editor for this project?"
+    )
+    assert [r.memory.text for r in recalls] == ["I use Neovim"]
+
+
+def test_an_unslotted_store_gets_no_benefit_from_slot_search(backend: Backend) -> None:
+    """Pins where the gain comes from.
+
+    The same fact stored verbatim by the naive writer — no slot — is not found
+    by the same query. The retrieval improvement is not free: it is paid for by
+    the write path bothering to work out what the fact is about.
+    """
+    writer = NaiveMemoryWriter(backend.store)
+    writer.apply("bob", "I use Neovim")
+    for chatter in (
+        "I had a great coffee this morning near the office",
+        "We finally shipped the dashboard on Friday",
+        "My sister is visiting from Toronto",
+    ):
+        writer.apply("bob", chatter)
+
+    recalls = MemoryReader(backend.store, top_k=1).recall(
+        "bob", "How should I set up my editor for this project?"
+    )
+    assert [r.memory.text for r in recalls] != ["I use Neovim"]
+
+
 def test_blank_query_recalls_nothing(backend: Backend) -> None:
     NaiveMemoryWriter(backend.store).apply("alice", "I prefer pytest.")
     assert MemoryReader(backend.store).recall("alice", "   ") == []

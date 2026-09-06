@@ -55,13 +55,17 @@ def open_backend(settings: Settings, *, setup: bool = True) -> Iterator[Backend]
     release time instead of on every process start.
     """
     embedder = build_embedder(settings)
-    # Index only the fact text. The rest of the record — provenance, expiry,
-    # supersession — is metadata we filter on, and embedding it would blur the
-    # vector that recall depends on.
+    # Index the fact text and the slot it occupies, as two separate vectors a
+    # query can match either of. Provenance, expiry and supersession stay out:
+    # they are metadata we filter on, and embedding them would blur the vector
+    # recall depends on.
+    #
+    # The slot vector is what lets the write path's structure pay for itself on
+    # the read path — see Memory.slot_text.
     index: IndexConfig = {
         "dims": embedder.dims,
         "embed": embedder.embeddings,
-        "fields": ["text"],
+        "fields": ["text", "slot_text"],
     }
 
     if settings.store_backend == "memory":

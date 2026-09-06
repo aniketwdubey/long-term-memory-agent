@@ -62,6 +62,35 @@ def test_superseded_memories_are_not_active_even_without_an_expiry() -> None:
     assert not old.is_active()
 
 
+def test_slot_text_renders_the_slot_as_searchable_words() -> None:
+    """Underscores become spaces so the slot key matches ordinary phrasing."""
+    m = Memory(user_id="u1", text="I use Neovim", attribute="testing_framework", value="pytest")
+    assert m.slot_text() == "testing framework pytest"
+
+
+def test_unslotted_memories_have_no_slot_text() -> None:
+    assert Memory(user_id="u1", text="Always show the SQL").slot_text() == ""
+
+
+def test_slot_text_is_written_to_the_store_for_indexing() -> None:
+    m = Memory(user_id="u1", text="I use Neovim", attribute="editor", value="neovim")
+    assert m.to_value()["slot_text"] == "editor neovim"
+
+
+def test_unslotted_memories_omit_the_field_rather_than_writing_it_empty() -> None:
+    """An empty string still embeds.
+
+    Written as "", every unslotted memory would share one identical slot vector
+    for some unlucky query to collide with. Absent is skipped by the index.
+    """
+    assert "slot_text" not in Memory(user_id="u1", text="Always show the SQL").to_value()
+
+
+def test_the_derived_field_does_not_break_round_tripping() -> None:
+    m = Memory(user_id="u1", text="I use Neovim", attribute="editor", value="neovim")
+    assert Memory.from_value(m.to_value()) == m
+
+
 def test_provenance_decides_what_may_write_to_user_memory() -> None:
     assert is_trusted(Provenance.USER)
     assert is_trusted(Provenance.AGENT)
