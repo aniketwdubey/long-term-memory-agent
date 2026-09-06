@@ -159,6 +159,16 @@ make test       # full suite, no network
 make eval       # the benchmark table above
 ```
 
+Against real Bedrock (Amazon Nova + Titan, a few cents):
+
+```bash
+aws configure                                      # once
+python scripts/check_bedrock.py                    # preflight + model bake-off
+ENGRAM_CHAT_PROVIDER=bedrock ENGRAM_EMBEDDER=bedrock make demo
+python -m engram.eval.runner eval/cases/core.jsonl \
+  --provider bedrock --embedder bedrock --limit 2  # balanced live sample
+```
+
 Against real Postgres + pgvector:
 
 ```bash
@@ -193,8 +203,8 @@ Every default is offline.
 | `ENGRAM_MEMORY_WRITER` | `manager` | `manager` \| `naive` (the benchmark's control arm) |
 | `ENGRAM_RECALL_TOP_K` | `5` | memories injected per turn |
 | `ENGRAM_DEDUPE_SIMILARITY` | `0.9` | cosine above which two unslotted facts are one fact |
-| `ENGRAM_BEDROCK_MODEL_ID` | `us.anthropic.claude-haiku-4-5-…` | cheap tier: extraction, dedupe triage |
-| `ENGRAM_BEDROCK_REASONING_MODEL_ID` | same | point at a larger model for conflict resolution |
+| `ENGRAM_BEDROCK_MODEL_ID` | `amazon.nova-lite-v1:0` | extraction and responses |
+| `ENGRAM_BEDROCK_REASONING_MODEL_ID` | `amazon.nova-pro-v1:0` | unused today; the knob for judgement-heavy work |
 
 ### Why the defaults are what they are
 
@@ -207,6 +217,12 @@ quality held constant. That is what a regression gate needs. Set
 
 It is also honest about failure: when contradicting facts have both been stored,
 both appear in the answer. The conflict score above is not simulated.
+
+**Amazon's own models on Bedrock.** Nova Lite for extraction and responses,
+Titan v2 for embeddings — Amazon-published models rather than marketplace ones,
+so they are covered by AWS credits. Nova Micro is cheaper still and was
+noticeably worse at choosing slot keys (it filed `pytest` under `editor`);
+`scripts/check_bedrock.py` runs the comparison on your own account.
 
 **Three embedders, because dedupe quality is the whole game.** `hashing` is
 deterministic across processes (BLAKE2b, not Python's salted `hash`), so CI
@@ -369,6 +385,29 @@ value — so the contradiction survived being resolved. Only the demo caught it.
 7-day TTL never lapses during a run. Expiry is covered in `tests/test_manager.py`
 instead; claiming a decay score from a benchmark that cannot advance the clock
 would be dishonest.
+
+**The live path needed its own preflight, and it earned it.** Everything else
+runs offline against the stub, which is what makes CI trustworthy and also means
+the live path can rot unseen. It had. The first real Bedrock run found three bugs
+no offline test could have caught, because the stub never makes these mistakes:
+
+1. **`ttl_days: 0` on durable facts.** Both Nova models returned it however
+   plainly the prompt asked for null. Taken literally that is an expiry of
+   *now*, so every standing preference was written already dead.
+2. **Invented expiries.** Nova Micro gave "prefers pytest" a 365-day TTL and
+   "on the payments team" a 30-day one. Nothing the user said suggested either.
+   A wrong TTL does not fail loudly — it forgets a preference weeks later and
+   the agent quietly starts answering wrongly again.
+3. **A question erasing its own answer.** Asked *"Which team am I on again?"*,
+   the model returned `team=""` — a fact-shaped object with nothing in it.
+   The empty value differed from the stored one, so conflict resolution treated
+   it as a contradiction and **superseded the correct fact**.
+
+All three are now guarded in policy code rather than only in the prompt, which
+is the same division of labour as everywhere else here: the model normalises,
+policy code decides. `scripts/check_bedrock.py` is the regression check, and it
+reports when a guard had to step in — a model proposing expiries nobody asked
+for is worth knowing about even when the code catches it.
 
 **A substring check can fail a correct answer.** If the new fact's own wording
 contains the old value, `reject_any` trips even though memory did the right

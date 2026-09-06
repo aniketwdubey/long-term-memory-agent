@@ -37,16 +37,17 @@ class Settings(BaseSettings):
     # default so that tests, CI and `make eval` never touch the network.
     chat_provider: ChatProvider = "stub"
     aws_region: str = "us-east-1"
-    # Haiku 4.5 is the cheapest current Claude on Bedrock and is the right tier
-    # for the high-volume half of the memory workload (fact extraction, dedupe
-    # triage). Current Claude models are not invokable by their bare id — an
-    # inference-profile id (`us.` prefix) is required.
-    bedrock_model_id: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
-    # Conflict resolution ("does this new fact update, supersede or coexist with
-    # that one?") is the reasoning-heavy half and gets its own, stronger model.
-    # Defaults to the same id so a fresh checkout costs nothing extra; point it
-    # at a larger model when you want the better judgement.
-    bedrock_reasoning_model_id: str = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+    # Amazon Nova Lite: cheap enough for the high-volume half of the workload
+    # (every turn is a candidate for extraction), and — being an Amazon model
+    # rather than a marketplace one — covered by AWS credits. Nova Micro is
+    # cheaper still but was measurably worse at choosing slot keys on the live
+    # check: it filed "pytest" under `editor`. Run scripts/check_bedrock.py to
+    # compare on your own account.
+    bedrock_model_id: str = "amazon.nova-lite-v1:0"
+    # A stronger model for judgement-heavy work. Nothing routes here today —
+    # conflict resolution is deterministic policy code, not a model call — but
+    # the knob exists for when something does.
+    bedrock_reasoning_model_id: str = "amazon.nova-pro-v1:0"
     bedrock_embed_model_id: str = "amazon.titan-embed-text-v2:0"
     max_tokens: int = Field(default=2048, ge=256, le=8192)
     llm_timeout_seconds: float = Field(default=30.0, gt=0)

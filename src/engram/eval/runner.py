@@ -116,6 +116,23 @@ def run_arm(settings: Settings, cases: Sequence[EvalCase], arm: Arm) -> ArmRepor
     return ArmReport(arm=arm.label, results=results)
 
 
+def _sample_per_kind(cases: Sequence[EvalCase], limit: int) -> list[EvalCase]:
+    """Up to ``limit`` cases of each kind, in file order.
+
+    Balanced rather than a prefix: the case file is grouped by kind, so taking
+    the first N would run nothing but passive recall and report a number that
+    looks great and means nothing.
+    """
+    seen: dict[CaseKind, int] = {}
+    out: list[EvalCase] = []
+    for case in cases:
+        count = seen.get(case.kind, 0)
+        if count < limit:
+            seen[case.kind] = count + 1
+            out.append(case)
+    return out
+
+
 def _pct(value: float) -> str:
     return f"{value * 100:5.1f}%"
 
@@ -176,6 +193,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--top-k", type=int, help="Memories injected per turn.")
     parser.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     parser.add_argument(
+        "--limit",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Run at most N cases OF EACH KIND. For live runs, where every turn "
+        "is an API call — a flat prefix would be all one kind and tell you nothing.",
+    )
+    parser.add_argument(
+        "--arms",
+        nargs="+",
+        choices=[a.label for a in ARMS],
+        default=None,
+        help="Run only these arms. Defaults to all three.",
+    )
+    parser.add_argument(
         "--fail-under-decision",
         type=float,
         default=None,
@@ -216,7 +248,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     configure_logging(settings)
 
     cases = load_cases(args.cases)
-    reports = [run_arm(settings, cases, arm) for arm in ARMS]
+    if args.limit:
+        cases = _sample_per_kind(cases, args.limit)
+    arms = [a for a in ARMS if args.arms is None or a.label in args.arms]
+    reports = [run_arm(settings, cases, arm) for arm in arms]
 
     if args.json:
         print(json.dumps([r.model_dump(mode="json") for r in reports], indent=2))

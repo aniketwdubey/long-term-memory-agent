@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Protocol, runtime_checkable
 import structlog
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from engram.schemas import MemoryKind
 
@@ -64,8 +64,24 @@ class CandidateFact(BaseModel):
     importance: float = Field(default=0.5, ge=0.0, le=1.0)
     ttl_days: int | None = Field(
         default=None,
-        description="Days until this should be forgotten. None for durable facts.",
+        description=(
+            "Days until this should be forgotten. Use null — never 0 — for "
+            "durable facts that should never expire."
+        ),
     )
+
+    @field_validator("ttl_days")
+    @classmethod
+    def _zero_means_durable(cls, value: int | None) -> int | None:
+        """Treat a non-positive TTL as "no expiry".
+
+        Real models return ``ttl_days: 0`` for durable facts however plainly the
+        prompt asks for null — both Nova Micro and Nova Lite did it on the first
+        live run. Taken literally that is an expiry of *now*, so every standing
+        preference would be written already dead. The prompt asks for null and
+        this makes it not matter.
+        """
+        return None if value is not None and value <= 0 else value
 
 
 class ExtractionResult(BaseModel):
@@ -91,17 +107,41 @@ assistant can remember them in later sessions.
 Return facts ONLY when the turn states something about the user that would \
 still be useful weeks from now: preferences, tools they use, where they live, \
 their role or team, constraints, dietary needs, and standing instructions about \
-how they want things done. Most turns contain nothing — small talk, status \
-updates, questions and requests are not facts. Returning an empty list is the \
-common, correct answer; inventing facts to seem useful is the main failure mode.
+how they want things done.
+
+Most turns contain nothing. Small talk, status updates, complaints about the \
+office, questions, and requests are NOT facts about the user:
+  "Morning! The coffee machine is broken again."  -> no facts
+  "Did you see the standup notes?"                -> no facts
+  "Scaffold me a test for the refund endpoint."   -> no facts
+  "We finally shipped the dashboard on Friday."   -> no facts
+
+A QUESTION IS NEVER A FACT. When the user asks about something, they are \
+telling you they do not know it — that is the opposite of stating it. Never \
+turn the subject of a question into a slot:
+  "Which team am I on again?"        -> no facts (NOT team="")
+  "What access do I have?"           -> no facts (NOT access="unknown")
+  "Where did I say I lived?"         -> no facts
+  "Who should review my change?"     -> no facts
+
+Never emit a fact whose `value` is empty, "unknown", or "unspecified". If you \
+do not know the value, there is no fact — return nothing.
+
+Returning an empty list is the common, correct answer. Inventing facts to seem \
+useful is the main failure mode.
 
 For each fact:
 - `text` — a self-contained sentence in the third person, understandable with \
 no other context. Write "Prefers pytest for testing", not "yeah I like it".
 - `attribute` — a short snake_case slot key. Two facts that cannot both be true \
-at once MUST share an attribute: use `team` for what team they are on, \
-`location` for where they live, `editor` for their editor, and so on. Reuse the \
-obvious key rather than inventing a specific one.
+at once MUST share an attribute, and the same fact restated later MUST get the \
+same key, so prefer one of these wherever it fits:
+  team, role, employer, location, timezone, working_hours, language, \
+  testing_framework, web_framework, database, editor, deploy_tool, cloud, os, \
+  diet, allergy, accessibility, pet_name, communication_preference
+  Invent a new snake_case key only when none of them fits, and keep it generic \
+(`editor`, not `preferred_code_editor`). Leave it empty for standing \
+instructions that do not name a property of the user.
 - `value` — the value filling the slot, normalised and short: "platform", \
 "Berlin", "pytest".
 - `scope` — set only when two values of the same attribute can genuinely both \
@@ -109,8 +149,15 @@ be true (a work address and a home address). Otherwise leave it empty.
 - `kind` — `semantic` for durable facts, `episodic` for things that happened, \
 `procedural` for standing instructions about how to do things.
 - `importance` — 0 to 1. Standing preferences and constraints score high.
-- `ttl_days` — set ONLY for explicitly temporary states ("I'm debugging this \
-today", "I'm on call this week"). Durable preferences must leave it null.
+- `ttl_days` — null for almost everything. Set a number ONLY when the user's \
+own words mark the state as temporary. Do not invent an expiry for something \
+that simply feels like it might change one day.
+  "I'm debugging a flaky test today"   -> ttl_days: 1
+  "I'm on call this week"              -> ttl_days: 7
+  "I prefer pytest"                    -> ttl_days: null
+  "I've relocated to Berlin"           -> ttl_days: null
+  "I'm on the payments team"           -> ttl_days: null
+  Never use 0. A 0 means "expired already" and throws the fact away.
 """
 
 
@@ -171,13 +218,37 @@ _DIRECTIVE_PATTERN = re.compile(
     r"^\s*(?:always|never|don'?t|do not|please\s+(?:always|never))\b", re.IGNORECASE
 )
 
-# States the user marked as temporary. Only explicit markers count; guessing at
-# transience is how durable preferences get silently forgotten.
+# Narrow: what makes an *ongoing activity* worth storing at all. Widening this
+# is how "my sister is visiting next month" becomes a fact about the user.
 _TRANSIENT_PATTERN = re.compile(
     r"\b(?:today|tonight|right now|this (?:morning|afternoon|week|sprint))\b",
     re.IGNORECASE,
 )
 _TRANSIENT_TTL_DAYS = 7
+
+# Wide: what counts as the user having framed something as temporary at all.
+# The two err in opposite directions on purpose. Storing an activity costs a
+# little precision; wrongly rejecting a real expiry makes a temporary fact
+# permanent, which is a silent, long-lived wrong answer.
+_TEMPORAL_MARKER_PATTERN = re.compile(
+    r"\b(?:today|tonight|tomorrow|right now|currently|for now|at the moment|"
+    r"this (?:morning|afternoon|evening|week|month|sprint|quarter|year)|"
+    r"next (?:week|month|quarter)|until \w+|for the next \w+|"
+    r"temporarily|for a (?:while|bit)|these days|on call|this time)\b",
+    re.IGNORECASE,
+)
+
+
+def has_temporal_marker(text: str) -> bool:
+    """Whether the text frames itself as temporary in the user's own words.
+
+    Used to check a model's proposed expiry against the turn it came from. Both
+    extractors propose TTLs, but only the user can actually make a fact
+    temporary — a model that decides "prefers pytest" lapses in a year has
+    invented a deadline nobody set. See MemoryManager for the enforcement.
+    """
+    return bool(_TEMPORAL_MARKER_PATTERN.search(text))
+
 
 # The slot lexicon. This is the part a real model does far better, and it is the
 # reason the rule extractor is documented as a fixture: a lexicon can only

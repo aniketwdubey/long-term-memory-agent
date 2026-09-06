@@ -153,6 +153,43 @@ def test_a_fact_stated_twice_in_one_turn_is_stored_once(backend: Backend) -> Non
     assert len(active(backend)) == 1
 
 
+# --- guarding model output ---------------------------------------------------
+
+
+def test_a_question_cannot_erase_the_answer(backend: Backend) -> None:
+    """The most destructive bug this code has had, pinned.
+
+    Asked "Which team am I on again?", a live model returned ``team=""`` — a
+    fact-shaped object with nothing in it. The empty value differed from the
+    stored one, so conflict resolution treated it as a contradiction and
+    superseded the correct fact. Asking about something made the agent forget it.
+    """
+    m = manager(
+        backend,
+        [fact("On the platform team", "team", "platform")],
+        [fact("The user is asking about their team", "team", "")],
+    )
+    m.apply("alice", "I'm on the platform team")
+    report = m.apply("alice", "Which team am I on again?")
+
+    assert report.decisions == []
+    assert [x.value for x in active(backend)] == ["platform"]
+
+
+@pytest.mark.parametrize("value", ["", "   ", "unknown", "Unspecified", "none", "n/a"])
+def test_a_slot_with_no_real_value_is_discarded(backend: Backend, value: str) -> None:
+    """ "unknown" is a model signalling absence, not reporting a value."""
+    m = manager(backend, [fact("Something about access", "access", value)])
+    assert m.apply("alice", "What access do I have?").written == []
+    assert active(backend) == []
+
+
+def test_an_unslotted_fact_needs_no_value(backend: Backend) -> None:
+    """The guard is about empty *slots*, not about unslotted facts."""
+    m = manager(backend, [fact("Always show the SQL before running it")])
+    assert len(m.apply("alice", "Always show the SQL before running it").written) == 1
+
+
 # --- conflict resolution -----------------------------------------------------
 
 
@@ -244,10 +281,29 @@ def test_a_contradiction_retires_every_stale_value_in_the_slot(backend: Backend)
 
 def test_a_ttl_becomes_an_expiry(backend: Backend) -> None:
     m = manager(backend, [fact("Debugging a flaky test", ttl_days=7)])
-    written = m.apply("alice", "...").written[0]
+    written = m.apply("alice", "I'm debugging a flaky test today").written[0]
 
     assert written.expires_at is not None
     assert written.expires_at > utcnow() + timedelta(days=6)
+
+
+def test_an_expiry_the_user_never_asked_for_is_rejected(backend: Backend) -> None:
+    """Guards against a model inventing a deadline nobody set.
+
+    On the first live Bedrock run, Nova Micro gave "prefers pytest" a 365-day
+    expiry. Honoured literally, the preference would vanish a year later and the
+    agent would quietly start answering wrongly again — with nothing in any log
+    to connect the two.
+    """
+    m = manager(backend, [fact("Prefers pytest", "testing_framework", "pytest", ttl_days=365)])
+    written = m.apply("alice", "I prefer pytest for everything I write").written[0]
+
+    assert written.expires_at is None
+
+
+def test_a_ttl_survives_when_the_user_did_frame_it_as_temporary(backend: Backend) -> None:
+    m = manager(backend, [fact("On call", "oncall", "yes", ttl_days=7)])
+    assert m.apply("alice", "I'm on call this week").written[0].expires_at is not None
 
 
 def test_durable_facts_have_no_expiry(backend: Backend) -> None:

@@ -21,6 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 from engram.config import Settings  # noqa: E402
 from engram.graph import Agent  # noqa: E402
 from engram.logging import configure_logging  # noqa: E402
+from engram.memory.write import MemoryOp  # noqa: E402
 from engram.store import open_backend  # noqa: E402
 
 USER = "demo-user"
@@ -133,9 +134,13 @@ def main() -> int:
         for decision in agent.chat(USER, "next-monday", pasted).decisions:
             print(f"  {DIM}       ↳ {decision.op.value.upper():<9} {decision.reason}{RESET}")
         legit = agent.chat(USER, "next-monday", "Remember that I prefer pytest.")
+        # Accepted OR recognised as already known — both mean the gate let it
+        # through. Requiring a *write* would fail whenever the fact is already
+        # stored, which is exactly what happens on a second run.
+        blocked = any(d.op is MemoryOp.QUARANTINE for d in legit.decisions)
         verdict(
-            bool(legit.written),
-            "hostile text blocked, but 'Remember that I prefer pytest' still stored "
+            not blocked,
+            "hostile text blocked, but 'Remember that I prefer pytest' passed "
             "— a gate that blocks real requests is worse than no gate",
         )
 
