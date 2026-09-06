@@ -104,17 +104,17 @@ make eval-semantic   # real sentence embeddings
 | Metric | Stateless | Naive writer | **Memory manager** |
 |---|---|---|---|
 | Passive recall (n=9) | 0.0% | 100.0% | **100.0%** |
-| **Decision-relevant recall (n=10)** | 0.0% | 60.0% | **80.0%** |
-| Conflict resolution (n=7) | 0.0% | 14.3% | **85.7%** |
+| **Decision-relevant recall (n=10)** | 0.0% | 60.0% | **90.0%** |
+| Conflict resolution (n=7) | 0.0% | 14.3% | **100.0%** |
 | Injection (n=6) | 0.0% | 16.7% | **100.0%** |
-| Overall (n=32) | 0.0% | 53.1% | **90.6%** |
+| Overall (n=32) | 0.0% | 53.1% | **96.9%** |
 | **Injection resistance** | — | 0.0% | **100.0%** |
 | Memory recall — kept the facts | 0.0% | 96.9% | 96.9% |
 | Memory precision — kept *only* facts | 0.0% | 24.3% | **87.9%** |
 | Memories stored per user | 0.0 | 28.0 | **7.8** |
 
 <sub>`--embedder fastembed`. With the deterministic `hashing` embedder used in
-CI: decision-relevant 60.0 / 80.0, conflict 14.3 / 42.9, injection resistance
+CI: decision-relevant 60.0 / 90.0, conflict 14.3 / 71.4, injection resistance
 0 / 100, precision 24.3 / 87.9 (naive / manager). The stateless arm scores 100%
 on injection resistance for an uninteresting reason — it stores nothing at
 all — so that cell is left blank rather than presented as a win.</sub>
@@ -167,12 +167,16 @@ Three honest caveats, because the headline reads better than the run deserves:
   "User wants SQL shown before execution" is marked as having lost
   "show me the sql" when it plainly has not.)
 
-**Where it still fails.** Decision-relevant recall is 80%, and every remaining
-failure is a *retrieval* miss, not a write-path bug: the right fact is stored and
-live, but "how should I set up my editor?" does not retrieve "I use Neovim"
-because the two share no vocabulary. That is the read path's problem and the next
-thing worth attacking. Passive recall saturating at 100% while decision-relevant
-sits at 80% is the same gap published memory benchmarks report.
+**Where it still fails.** One case in thirty-two: *"Build me a chart of weekly
+signups"* does not retrieve *"I'm colorblind, so avoid red/green pairings"*.
+Decision-relevant recall stays the hardest column, which is the same shape
+published memory benchmarks report — passive recall saturates while
+decision-relevant lags.
+
+The manager arm is now close to saturating this benchmark. It still works as a
+regression gate — any drop shows — but it has little room left to measure
+*improvements*, which is the argument for wiring up the real LoCoMo set next
+rather than authoring more cases by hand.
 
 ---
 
@@ -454,6 +458,19 @@ give each user ~31.
 as "no meat at any *restaurant*" for a probe about picking a *restaurant* — which
 tunes the benchmark to flatter a lexical retriever. The facts are now worded as a
 user would state them, and the deterministic embedder scores worse for it.
+
+**The read path spends what the write path earned.** Retrieval indexes two
+vectors per memory: the fact text, and the slot rendered as words (`editor
+neovim`). A query almost always names the *kind* of thing it wants rather than
+the answer — "how should I set up my editor?" shares no vocabulary at all with
+"I use Neovim", but a great deal with the slot key `editor`. Adding the slot
+vector moved decision-relevant recall from 80% to 90% and conflict resolution
+from 85.7% to 100%.
+
+The part worth noticing is that **the naive arm did not move at all** — 53.1%
+before and after. It stores turns verbatim, so it has no slots to index, and the
+same change buys it nothing. The retrieval win is not free: it is paid for by
+the write path having bothered to work out what each fact is about.
 
 **Recall over-fetches before filtering.** Expired and superseded memories are
 removed after the store returns its matches, so a user whose closest matches are

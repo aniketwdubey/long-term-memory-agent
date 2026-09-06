@@ -27,6 +27,8 @@ def test_memory_backend_indexes_at_the_embedders_dimensions() -> None:
     with open_backend(settings) as backend:
         assert backend.store.index_config is not None
         assert backend.store.index_config["dims"] == 64
+        # Both vectors: the fact text, and the slot it occupies.
+        assert backend.store.index_config["fields"] == ["text", "slot_text"]
 
 
 def test_unknown_backend_is_rejected() -> None:
