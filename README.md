@@ -215,6 +215,25 @@ ENGRAM_TEST_DSN=postgresql://engram:engram@localhost:5432/engram \
 make down                                          # tears down the volume too
 ```
 
+Over HTTP:
+
+```bash
+make serve      # uvicorn on :8000, interactive docs at /docs
+docker compose --profile api up   # ...or against Postgres, in Docker
+```
+
+| | |
+|---|---|
+| `POST /v1/chat` | one turn — returns the reply **and** the memory trace |
+| `POST /v1/observe` | feed it content it *read*; provenance is explicit at the call site |
+| `GET /v1/memories/{user}` | everything stored, retired records included |
+| `GET /v1/quarantine/{user}` | what the gate refused |
+| `DELETE /v1/memories/{user}` | forget me — memories, quarantine, transcripts |
+
+The last three exist because a memory system whose contents cannot be inspected
+or deleted is one users have to take on trust, and "forget me" should not live
+only in a Python function.
+
 Talk to it yourself:
 
 ```bash

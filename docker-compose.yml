@@ -18,6 +18,32 @@ services:
       timeout: 3s
       retries: 10
 
+  # The HTTP API against Postgres. Offline by default: the stub model and the
+  # deterministic embedder need no credentials.
+  api:
+    build: .
+    profiles: ["api"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      ENGRAM_STORE_BACKEND: postgres
+      ENGRAM_POSTGRES_DSN: postgresql://engram:engram@postgres:5432/engram
+      ENGRAM_CHAT_PROVIDER: ${ENGRAM_CHAT_PROVIDER:-stub}
+      ENGRAM_EMBEDDER: ${ENGRAM_EMBEDDER:-hashing}
+      ENGRAM_LOG_FORMAT: json
+      AWS_ACCESS_KEY_ID:
+      AWS_SECRET_ACCESS_KEY:
+      AWS_SESSION_TOKEN:
+    command: ["uvicorn", "engram.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status==200 else 1)"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+
   # One-shot: replays the cross-session demo against Postgres.
   demo:
     build: .
