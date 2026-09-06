@@ -34,6 +34,13 @@ baseline = [
     # use. That provider imports the langchain umbrella package.
     "langchain>=1,<2",
 ]
+# Vendor-neutral tracing. Optional because the default is off, and because the
+# structured logs and per-turn trace already carry the memory-op story.
+otel = [
+    "opentelemetry-api>=1.30",
+    "opentelemetry-sdk>=1.30",
+    "opentelemetry-exporter-otlp-proto-http>=1.30",
+]
 dev = [
     "pytest>=8.0",
     "httpx>=0.27",

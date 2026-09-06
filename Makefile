@@ -1,5 +1,5 @@
 .PHONY: help install lint test eval eval-semantic eval-live eval-baseline \
-	locomo locomo-live check-bedrock serve demo up down logs docker-demo clean
+	locomo locomo-live check-bedrock serve trace-demo demo up down logs docker-demo clean
 
 # Prefer uv when it is installed; fall back to the stdlib venv otherwise.
 UV := $(shell command -v uv 2>/dev/null)
@@ -13,11 +13,11 @@ help:  ## Show available targets
 install:  ## Create the env and install the package with dev extras
 ifdef UV
 	uv venv $(VENV)
-	uv pip install --python $(PY) -e ".[dev,embed]"
+	uv pip install --python $(PY) -e ".[dev,embed,otel]"
 else
 	python3 -m venv $(VENV)
 	$(VENV)/bin/pip install -U pip
-	$(VENV)/bin/pip install -e ".[dev,embed]"
+	$(VENV)/bin/pip install -e ".[dev,embed,otel]"
 endif
 
 lint:  ## Ruff + mypy --strict
@@ -55,6 +55,9 @@ check-bedrock:  ## Preflight the live path and compare Nova models
 
 serve:  ## Run the HTTP API on :8000 (docs at /docs)
 	$(VENV)/bin/uvicorn engram.api.main:app --reload --port 8000
+
+trace-demo:  ## Print OpenTelemetry spans for a couple of turns
+	ENGRAM_OTEL_EXPORTER=console ENGRAM_LOG_LEVEL=ERROR $(PY) scripts/demo.py
 
 demo:  ## Cross-session recall demo, in-process
 	ENGRAM_LOG_LEVEL=WARNING $(PY) scripts/demo.py
