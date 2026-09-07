@@ -9,7 +9,7 @@ WORKDIR /app
 # Dependency layer first so source edits do not invalidate the install.
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
-RUN pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir -e ".[otel]"
 
 COPY scripts/ ./scripts/
 COPY eval/ ./eval/

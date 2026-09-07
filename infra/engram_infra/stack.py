@@ -160,8 +160,11 @@ class EngramStack(cdk.Stack):
             "InfrastructureRole",
             assumed_by=iam.ServicePrincipal("ecs.amazonaws.com"),
             managed_policies=[
+                # Under service-role/, not the root path. The first deploy
+                # failed on exactly this: the policy NAME was confirmed by
+                # enumerating IAM, but not its ARN, and the path is part of it.
                 iam.ManagedPolicy.from_aws_managed_policy_name(
-                    "AmazonECSInfrastructureRoleforExpressGatewayServices"
+                    "service-role/AmazonECSInfrastructureRoleforExpressGatewayServices"
                 )
             ],
         )
@@ -228,6 +231,12 @@ class EngramStack(cdk.Stack):
                     _env("ENGRAM_BEDROCK_REASONING_MODEL_ID", reasoning_model),
                     _env("ENGRAM_BEDROCK_EMBED_MODEL_ID", embed_model),
                     _env("ENGRAM_LOG_FORMAT", "json"),
+                    # Spans to the container logs, where CloudWatch collects
+                    # them. Building tracing and then leaving it off in the one
+                    # environment nobody can attach a debugger to would be an
+                    # odd place to economise.
+                    _env("ENGRAM_OTEL_EXPORTER", "console"),
+                    _env("ENGRAM_OTEL_SERVICE_NAME", "engram"),
                 ],
                 secrets=[
                     ecs.CfnExpressGatewayService.SecretProperty(
