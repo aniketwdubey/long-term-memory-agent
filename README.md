@@ -343,10 +343,42 @@ for three reasons worth being explicit about:
 * **It annotates evidence turns, not facts worth keeping**, so the store-side
   precision and recall metrics have nothing to score against.
 
-#### What it measured, and why the number is what it is
+#### Results
 
-**26.7%** on one conversation (30 questions, live Nova + Titan). Before reading
-that as a verdict, look at what LoCoMo asks:
+**41.3%** overall — 3 conversations, 300 questions, live Nova + Titan.
+
+| Category | n | Accuracy |
+|---|---|---|
+| category-3 | 21 | 52.4% |
+| category-4 | 96 | 50.0% |
+| temporal | 90 | 46.7% |
+| multi-hop | 74 | 28.4% |
+| **adversarial** | 19 | **10.5%** |
+| **Overall** | **300** | **41.3%** |
+
+A single-conversation sample of 30 questions had said 26.7%, with temporal at
+18.8%; at n=90 temporal is 46.7%. **The small sample was badly
+unrepresentative**, which is the argument for measuring once at a real size
+rather than tuning against a noisy one — two attempts to "fix" temporal against
+that small sample were reverted for exactly this reason.
+
+**The weak column is adversarial: 10.5%.** Those questions carry a false premise
+— usually attributing something to the wrong speaker — and the correct answer is
+to decline. The system answers them anyway. That is worth sitting with, because
+it is the *mirror image* of this project's strongest result: it reliably refuses
+untrusted **sources** (100% injection resistance, structurally) and reliably
+fails to refuse false **premises**. Provenance is checked; plausibility is not.
+Nothing in the write path was designed to, and it shows.
+
+**1,451 turns became 1,300 memories** — roughly one per turn. On its own cases
+the manager keeps 7.8 per user; here extraction barely filters at all, because
+in rich two-person narrative almost every turn contains *something* it judges a
+fact. That is the live-precision weakness measured at scale, and it is the same
+finding from the other direction:
+
+#### Why the number is what it is
+
+Look at what LoCoMo asks:
 
 > *"What are the main ingredients of the ice cream recipe shared by Nate?"*
 > *"What does John write on the whiteboard to help him stay motivated?"*
