@@ -133,6 +133,19 @@ useful is the main failure mode.
 For each fact:
 - `text` — a self-contained sentence in the third person, understandable with \
 no other context. Write "Prefers pytest for testing", not "yeah I like it".
+
+  If the turn begins with a date in brackets, that is when it was said. RESOLVE \
+relative time against it and write the resolved date into the fact. A memory \
+that still says "yesterday" is anchored to nothing and can never answer a \
+question about when something happened:
+    "[7 May 2023] Caroline: I went to the support group yesterday"
+      -> "Caroline went to the LGBTQ support group on 6 May 2023"
+    "[25 May 2023] Melanie: I ran a charity race last Sunday"
+      -> "Melanie ran a charity race on Sunday 21 May 2023"
+    "[3 June 2023] Sam: I'm moving to Berlin next month"
+      -> "Sam is moving to Berlin in July 2023"
+  Never carry "yesterday", "last week", "next month" or "recently" into a fact \
+unresolved. Do not put the bracketed date in the fact verbatim — resolve it.
 - `attribute` — a short snake_case slot key. Two facts that cannot both be true \
 at once MUST share an attribute, and the same fact restated later MUST get the \
 same key, so prefer one of these wherever it fits:
@@ -179,9 +192,61 @@ class LLMFactExtractor:
             log.warning("memory.extract.failed", error=str(exc), chars=len(turn))
             return []
 
-        if isinstance(result, ExtractionResult):
-            return list(result.facts)
-        return list(ExtractionResult.model_validate(result).facts)
+        facts = (
+            list(result.facts)
+            if isinstance(result, ExtractionResult)
+            else list(ExtractionResult.model_validate(result).facts)
+        )
+        return anchor_dates(turn, facts)
+
+
+# A leading "[7 May 2023] " marks when a turn was said. Conversation replayed
+# from a transcript needs it: the record's created_at is when it was *ingested*,
+# which for a dialogue from last year is not when anything happened.
+_DATED_TURN = re.compile(r"^\s*\[([^\]]{3,40})\]\s*")
+
+# Relative references that mean nothing once separated from the turn that
+# carried them. A memory saying "yesterday" is anchored to nothing.
+_UNRESOLVED = re.compile(
+    r"\b(?:yesterday|today|tomorrow|tonight|this morning|this afternoon|"
+    r"last (?:night|week|month|year|sunday|monday|tuesday|wednesday|thursday|"
+    r"friday|saturday)|next (?:week|month|year)|recently|the other day)\b",
+    re.IGNORECASE,
+)
+
+
+def turn_date(turn: str) -> str:
+    """The bracketed date a turn was said on, if it carries one."""
+    match = _DATED_TURN.match(turn)
+    return match.group(1).strip() if match else ""
+
+
+def anchor_dates(turn: str, facts: list[CandidateFact]) -> list[CandidateFact]:
+    """Make sure a dated turn leaves dated facts.
+
+    The prompt asks the model to resolve "yesterday" against the turn's date,
+    and it often does — but calendar arithmetic ("the Sunday before 25 May
+    2023") is exactly the kind of thing a small model gets wrong half the time,
+    and asking a model to do what code can do reliably is the mistake this
+    project avoids everywhere else.
+
+    So the model is allowed to try, and this backstops it: any fact that still
+    carries an unresolved relative reference gets the turn's date appended. The
+    result is not as clean as a properly resolved date, but it is *answerable* —
+    "went to the support group yesterday (said on 7 May 2023)" can support a
+    question about when; "went to the support group yesterday" cannot.
+    """
+    said_on = turn_date(turn)
+    if not said_on:
+        return facts
+
+    anchored: list[CandidateFact] = []
+    for fact in facts:
+        if _UNRESOLVED.search(fact.text) and said_on not in fact.text:
+            anchored.append(fact.model_copy(update={"text": f"{fact.text} (said on {said_on})"}))
+        else:
+            anchored.append(fact)
+    return anchored
 
 
 # --- the offline stand-in ----------------------------------------------------
@@ -293,7 +358,8 @@ class RuleFactExtractor:
 
     def extract(self, turn: str) -> list[CandidateFact]:
         facts: list[CandidateFact] = []
-        for raw in _SENTENCE_SPLIT.split(turn.strip()):
+        body = _DATED_TURN.sub("", turn.strip())
+        for raw in _SENTENCE_SPLIT.split(body):
             sentence = raw.strip().rstrip(".!?").strip()
             if not sentence:
                 continue
@@ -315,7 +381,7 @@ class RuleFactExtractor:
                     ttl_days=_TRANSIENT_TTL_DAYS if transient else None,
                 )
             )
-        return facts
+        return anchor_dates(turn, facts)
 
     @staticmethod
     def _is_fact(sentence: str, *, transient: bool) -> bool:

@@ -13,7 +13,9 @@ from engram.memory.extract import (
     FactExtractor,
     LLMFactExtractor,
     RuleFactExtractor,
+    anchor_dates,
     build_extractor,
+    turn_date,
 )
 from engram.models import StubChatModel
 from engram.schemas import MemoryKind
@@ -138,6 +140,46 @@ def test_an_activity_without_a_time_marker_is_not_stored_at_all(
     extractor: RuleFactExtractor,
 ) -> None:
     assert extractor.extract("I'm reviewing the migration plan.") == []
+
+
+# --- dated turns -------------------------------------------------------------
+
+
+def test_a_dated_turn_yields_a_dated_fact(extractor: RuleFactExtractor) -> None:
+    """A memory saying "yesterday" is anchored to nothing.
+
+    Conversation replayed from a transcript needs this: created_at is when the
+    record was *ingested*, which for a dialogue from last year is not when
+    anything happened. Measured the hard way — a LoCoMo run scored 31% on
+    temporal questions because every fact had lost its date.
+    """
+    facts = extractor.extract("[7 May 2023] I moved to Berlin yesterday.")
+    assert "7 May 2023" in facts[0].text
+
+
+def test_an_already_resolved_date_is_left_alone(extractor: RuleFactExtractor) -> None:
+    fact = anchor_dates(
+        "[25 May 2023] Melanie: ...",
+        [CandidateFact(text="Melanie ran a charity race on 21 May 2023.")],
+    )[0]
+    assert "said on" not in fact.text
+
+
+def test_an_undated_turn_is_left_alone(extractor: RuleFactExtractor) -> None:
+    fact = anchor_dates("I prefer pytest.", [CandidateFact(text="Prefers pytest")])[0]
+    assert fact.text == "Prefers pytest"
+
+
+def test_the_bracketed_date_is_not_treated_as_part_of_the_sentence(
+    extractor: RuleFactExtractor,
+) -> None:
+    facts = extractor.extract("[7 May 2023] I prefer pytest for everything I write.")
+    assert facts[0].attribute == "testing_framework"
+
+
+def test_turn_date_reads_the_prefix() -> None:
+    assert turn_date("[7 May 2023] Caroline: hello") == "7 May 2023"
+    assert turn_date("Caroline: hello") == ""
 
 
 # --- the LLM extractor -------------------------------------------------------

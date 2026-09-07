@@ -56,6 +56,15 @@ PROBES: tuple[tuple[str, str, str], ...] = (
     ("I'm on call this week.", ANY_SLOT, "temporary"),
 )
 
+# Dated turns, checked separately: the fact must carry a resolved date and must
+# NOT carry an unanchored relative reference. A memory that says "yesterday"
+# with nothing to anchor it can never answer a question about when.
+DATED_PROBES: tuple[tuple[str, str], ...] = (
+    ("[7 May 2023] Caroline: I went to the support group yesterday.", "6 May"),
+    ("[25 May 2023] Melanie: I ran a charity race last Sunday.", "May"),
+)
+_RELATIVE = ("yesterday", "last sunday", "last week", "next month", "recently")
+
 
 def check_embeddings(settings: Settings) -> bool:
     print(f"\n{BOLD}Embeddings{RESET}  {settings.bedrock_embed_model_id}")
@@ -121,6 +130,23 @@ def check_model(settings: Settings, model_id: str) -> bool:
         if guard_fired:
             detail += f" {DIM}[guard dropped an unsupported ttl]{RESET}"
 
+        ok &= good
+        mark = f"{GREEN}✓{RESET}" if good else f"{RED}✗{RESET}"
+        print(f"  {mark} {turn[:44]:<46} {DIM}{detail}{RESET}")
+
+    for turn, expected in DATED_PROBES:
+        facts = extractor.extract(turn)
+        if not facts:
+            good, detail = False, "extracted nothing"
+        else:
+            text = facts[0].text
+            dangling = [r for r in _RELATIVE if r in text.lower()]
+            good = expected.lower() in text.lower() and not dangling
+            detail = text[:52]
+            if dangling:
+                detail += f" (unanchored: {dangling[0]})"
+            elif not good:
+                detail += f" (no resolved date, wanted {expected!r})"
         ok &= good
         mark = f"{GREEN}✓{RESET}" if good else f"{RED}✗{RESET}"
         print(f"  {mark} {turn[:44]:<46} {DIM}{detail}{RESET}")
