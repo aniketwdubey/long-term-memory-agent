@@ -13,3 +13,7 @@ infra/cdk.out/
 
 # Third-party benchmark data, fetched not vendored (see scripts/fetch_locomo.py)
 data/
+
+# Local-only writing: the handoff/context doc and the blog draft (not committed)
+docs/PROJECT_CONTEXT.md
+docs/blog.md
