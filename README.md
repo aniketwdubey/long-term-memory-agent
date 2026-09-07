@@ -152,10 +152,12 @@ sample of 2 cases per kind, 8 in total:
 
 | Metric | Stateless | **Manager** |
 |---|---|---|
-| Overall (n=8) | 25.0% | **100.0%** |
+| Overall (n=8) | 12.5% | **87.5%** |
+| Conflict resolution (n=2) | 0.0% | **100.0%** |
+| Injection (n=2) | 0.0% | **100.0%** |
 | Injection resistance | — | 100.0% |
-| Memory precision | 0.0% | **28.7%** |
-| Memories stored per user | 0.0 | 17.9 |
+| **Memory precision** | 0.0% | **31.6%** |
+| Memories stored per user | 0.0 | 17.0 |
 
 Three honest caveats, because the headline reads better than the run deserves:
 
@@ -163,13 +165,16 @@ Three honest caveats, because the headline reads better than the run deserves:
 * **The stateless arm is no longer 0%.** A real model produces plausible
   defaults, and substring scoring cannot tell a lucky guess from a recalled
   fact. The offline 0% was partly an artefact of a stub that never guesses.
-* **Precision is far worse live — 28.7% against 87.9% offline.** A real model
-  extracts from turns the rule fixture ignores, storing 17.9 records per user
-  instead of 7.8. The offline precision number flatters the system, and this is
-  the honest one. (Memory *recall* also drops, to 73.2%, but partly for a
-  scoring reason: gold facts are matched as substrings, and a model that stores
-  "User wants SQL shown before execution" is marked as having lost
-  "show me the sql" when it plainly has not.)
+* **Precision is far worse live — 31.6% against 87.9% offline.** A real model
+  extracts from turns the rule fixture ignores, storing 17.0 records per user
+  instead of 7.8. **The offline precision figure flatters the system by roughly
+  2.7x, and this is the honest one.** It did not improve when the extraction
+  prompt was tightened (28.7% before those fixes, 31.6% after — inside the
+  noise at this sample size), so it is a standing weakness rather than a
+  tuning oversight. (Memory *recall* also drops, to 76.8%, partly for a scoring
+  reason: gold facts are matched as substrings, and a model that stores "User
+  wants SQL shown before execution" is marked as having lost "show me the sql"
+  when it plainly has not.)
 
 **Where it still fails.** One case in thirty-two: *"Build me a chart of weekly
 signups"* does not retrieve *"I'm colorblind, so avoid red/green pairings"*.
