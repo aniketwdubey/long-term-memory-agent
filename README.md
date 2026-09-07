@@ -262,9 +262,14 @@ sibling of it.
 ```bash
 cd infra && make install          # once
 make cdk-synth                    # render the template, creates nothing
-make cdk-deploy                   # provisions everything
+make cdk-deploy                   # provisions everything (~11 min, RDS is the long pole)
 make cdk-destroy                  # leaves nothing behind
 ```
+
+Deployed and verified end to end: cross-session recall, a contradiction
+superseded, a poisoned document quarantined, and the retired record still
+sitting in RDS — all on live Nova and real pgvector, through the public
+endpoint. `make cdk-destroy` when you are done; this stack has standing cost.
 
 | Local | Deployed | Why |
 |---|---|---|
@@ -287,6 +292,14 @@ stays the one CI tests.
 lifetime. Lambda would rebuild that pool on every cold start and multiply
 connections against the instance limit under concurrency. A long-running
 container is the right shape; that it also avoids cold starts is a bonus.
+
+**Two things the first deploy taught, both now in the stack.** ECS Express Mode
+exposes no `runtimePlatform`, so tasks are x86_64 and the image is pinned to
+`LINUX_AMD64` — the same trap that cost project 07 three deploys, from the
+opposite direction. And the infrastructure role's managed policy lives under
+`service-role/`: the first deploy died on a 404 for that one ARN, and every
+other resource in the stack was a cascade cancellation from it. Confirming the
+policy *name* was not the same as confirming its *ARN*.
 
 **Why not AgentCore Runtime.** It is invocation-shaped — `POST /v1/chat` fits,
 but `GET /v1/memories`, `GET /v1/quarantine` and `DELETE /v1/memories/{user}` do

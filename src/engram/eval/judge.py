@@ -102,10 +102,28 @@ class SubstringJudge:
 
 
 def build_judge(settings: Settings, model: BaseChatModel | None = None) -> Judge:
-    """An LLM judge when a real model is configured, the substring floor otherwise."""
+    """An LLM judge when a real model is configured, the substring floor otherwise.
+
+    Uses the **reasoning** model, not the chat model. Grading is low-volume and
+    judgement-heavy — the opposite profile to extraction, which runs once per
+    turn — and a weak judge does not produce a slightly worse number, it
+    corrupts every number it touches. Measured on the extraction probes, Nova
+    Pro was the only model to slot every case correctly; paying for it a few
+    hundred times to keep the measuring instrument trustworthy is the right
+    trade, where paying for it on every turn is not.
+    """
     if settings.chat_provider == "stub":
         return SubstringJudge()
 
-    from engram.models import build_chat_model
+    if model is not None:
+        return LLMJudge(model)
 
-    return LLMJudge(model or build_chat_model(settings))
+    from langchain_aws import ChatBedrockConverse
+
+    return LLMJudge(
+        ChatBedrockConverse(
+            model=settings.bedrock_reasoning_model_id,
+            region_name=settings.aws_region,
+            max_tokens=settings.max_tokens,
+        )
+    )
