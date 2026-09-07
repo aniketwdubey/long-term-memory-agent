@@ -6,10 +6,17 @@ from collections.abc import Iterator
 from typing import Any
 
 import pytest
-from opentelemetry import trace
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor
-from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+# The tracing extra is optional at runtime; `dev` installs it so this suite runs
+# in CI. Skip rather than error for anyone who installed without it.
+pytest.importorskip("opentelemetry", reason='needs the otel extra: pip install -e ".[otel]"')
+
+from opentelemetry import trace  # noqa: E402
+from opentelemetry.sdk.trace import TracerProvider  # noqa: E402
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor  # noqa: E402
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import (  # noqa: E402
+    InMemorySpanExporter,
+)
 
 import engram.tracing as tracing
 from engram.config import Settings
