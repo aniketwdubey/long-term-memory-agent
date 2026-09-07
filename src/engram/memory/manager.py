@@ -50,6 +50,12 @@ log = structlog.get_logger(__name__)
 
 _MAX_EXISTING = 500
 
+# How many store-ranked candidates the unslotted dedupe check considers. The
+# store's vector index does the narrowing; exact cosine only settles the few it
+# returns. A near-duplicate that the index cannot surface in ten is not a
+# near-duplicate.
+_DEDUPE_CANDIDATES = 10
+
 # Values that are a model saying "I don't know" rather than a fact. Left
 # unchecked they fill a slot and, being different from whatever is there,
 # supersede it — so the agent forgets something true because it was asked a
@@ -85,6 +91,9 @@ class MemoryManager:
         self._embeddings = embeddings
         self._gate = gate or InjectionGate(store)
         self._dedupe_similarity = dedupe_similarity
+        # Embedding one text is a network round-trip on a hosted embedder, and
+        # the same memory's text gets compared against on turn after turn.
+        self._vectors: dict[str, list[float]] = {}
 
     @property
     def gate(self) -> InjectionGate:
@@ -326,18 +335,53 @@ class MemoryManager:
             evidence=candidate.text,
         )
 
+    def _embed(self, text: str) -> list[float]:
+        """Embed once per distinct text, per process.
+
+        The naive version re-embedded every stored memory on every unslotted
+        write. Offline that is local arithmetic and invisible; against a hosted
+        embedder it is a network call each, so the cost went quadratic in the
+        size of the store — a LoCoMo conversation of 419 turns spent tens of
+        thousands of round-trips on it.
+        """
+        vector = self._vectors.get(text)
+        if vector is None:
+            vector = self._embeddings.embed_query(text)
+            self._vectors[text] = vector
+        return vector
+
     def _nearest(self, text: str, existing: list[Memory]) -> Memory | None:
         """The existing memory this text duplicates, if any.
 
-        Similarity is computed here rather than read off the store's search
-        score, so the threshold means the same thing on every backend.
+        The store's vector index narrows the field; exact cosine settles it.
+        Doing the final comparison here rather than reading the store's own
+        score keeps the threshold meaning the same thing on every backend,
+        without paying to compare against everything the user has ever said.
+
+        Candidates come from the store rather than from ``existing`` because a
+        memory written earlier in this same turn was already ``put``, so the
+        index sees it too — there is no gap to paper over.
         """
         if not existing:
             return None
-        query = self._embeddings.embed_query(text)
+
+        live = {m.id: m for m in existing}
+        candidates = [
+            live[item.key]
+            for item in self._store.search(
+                (MEMORY_NAMESPACE, existing[0].user_id),
+                query=text,
+                limit=_DEDUPE_CANDIDATES,
+            )
+            if item.key in live
+        ]
+        if not candidates:
+            return None
+
+        query = self._embed(text)
         best, best_score = None, 0.0
-        for memory in existing:
-            score = _cosine(query, self._embeddings.embed_query(memory.text))
+        for memory in candidates:
+            score = _cosine(query, self._embed(memory.text))
             if score > best_score:
                 best, best_score = memory, score
         return best if best_score >= self._dedupe_similarity else None
