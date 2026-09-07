@@ -108,6 +108,20 @@ def test_turns_keep_their_speaker_when_rendered(dataset: Path) -> None:
     assert first.rendered() == "Caroline: I prefer pytest."
 
 
+def test_turns_carry_their_session_date(dataset: Path) -> None:
+    """A large share of LoCoMo's questions are temporal.
+
+    LoCoMo timestamps the session, not the turn. Dropping the date on the way
+    into memory makes every "when did X happen?" unanswerable no matter how good
+    the memory system is — the answer was never ingested. Measured the hard way:
+    a first live run scored 31% on temporal questions with the dates thrown away.
+    """
+    session = load_locomo(dataset)[0].sessions[0]
+    assert session.turns[0].rendered(session.date_time) == (
+        "[7 May 2023] Caroline: I prefer pytest."
+    )
+
+
 def test_session_timestamps_are_kept(dataset: Path) -> None:
     assert load_locomo(dataset)[0].sessions[0].date_time == "7 May 2023"
 
