@@ -83,13 +83,13 @@ def open_backend(settings: Settings, *, setup: bool = True) -> Iterator[Backend]
 
         with ExitStack() as stack:
             checkpointer = stack.enter_context(
-                PostgresSaver.from_conn_string(settings.postgres_dsn)
+                PostgresSaver.from_conn_string(settings.resolved_dsn)
             )
             store = stack.enter_context(
                 # PostgresIndexConfig only adds optional pgvector keys on top of
                 # IndexConfig, but TypedDicts are invariant, so widen explicitly.
                 PostgresStore.from_conn_string(
-                    settings.postgres_dsn, index=cast(PostgresIndexConfig, index)
+                    settings.resolved_dsn, index=cast(PostgresIndexConfig, index)
                 )
             )
             if setup:

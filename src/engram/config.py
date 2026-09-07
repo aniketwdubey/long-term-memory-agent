@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from functools import lru_cache
 from typing import Literal
+from urllib.parse import quote_plus
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -67,6 +68,27 @@ class Settings(BaseSettings):
     # PostgresStore, both from LangGraph itself.
     store_backend: StoreBackend = "memory"
     postgres_dsn: str = "postgresql://engram:engram@localhost:5432/engram"
+
+    # Deployed, the password arrives on its own from Secrets Manager rather than
+    # baked into a URL, so the parts are configurable separately and the DSN is
+    # assembled here. Setting `postgres_host` switches to this path. Keeping the
+    # secret out of a connection string also keeps it out of anything that logs
+    # or echoes one.
+    postgres_host: str = ""
+    postgres_port: int = 5432
+    postgres_user: str = "engram"
+    postgres_password: str = ""
+    postgres_db: str = "engram"
+
+    @property
+    def resolved_dsn(self) -> str:
+        """The DSN to connect with: assembled from parts when a host is set."""
+        if not self.postgres_host:
+            return self.postgres_dsn
+        auth = quote_plus(self.postgres_user)
+        if self.postgres_password:
+            auth += f":{quote_plus(self.postgres_password)}"
+        return f"postgresql://{auth}@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
 
     # --- Memory write path -------------------------------------------------
     # `manager` extracts, dedupes, resolves conflicts and decays. `naive` stores

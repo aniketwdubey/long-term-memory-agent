@@ -1,0 +1,11 @@
+{
+  "app": "python3 app.py",
+  "watch": { "exclude": ["**/.venv/**", "**/cdk.out/**"] },
+  "context": {
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/core:validateSnapshotRemovalPolicy": true,
+    "@aws-cdk/core:target-partitions": ["aws"]
+  }
+}
