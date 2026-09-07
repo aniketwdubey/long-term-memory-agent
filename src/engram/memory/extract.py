@@ -197,7 +197,7 @@ class LLMFactExtractor:
             if isinstance(result, ExtractionResult)
             else list(ExtractionResult.model_validate(result).facts)
         )
-        return anchor_dates(turn, facts)
+        return facts
 
 
 # A leading "[7 May 2023] " marks when a turn was said. Conversation replayed
@@ -205,48 +205,19 @@ class LLMFactExtractor:
 # which for a dialogue from last year is not when anything happened.
 _DATED_TURN = re.compile(r"^\s*\[([^\]]{3,40})\]\s*")
 
-# Relative references that mean nothing once separated from the turn that
-# carried them. A memory saying "yesterday" is anchored to nothing.
-_UNRESOLVED = re.compile(
-    r"\b(?:yesterday|today|tomorrow|tonight|this morning|this afternoon|"
-    r"last (?:night|week|month|year|sunday|monday|tuesday|wednesday|thursday|"
-    r"friday|saturday)|next (?:week|month|year)|recently|the other day)\b",
-    re.IGNORECASE,
-)
-
 
 def turn_date(turn: str) -> str:
-    """The bracketed date a turn was said on, if it carries one."""
+    """The bracketed date a turn was said on, if it carries one.
+
+    The prompt asks the model to resolve relative time against this. An earlier
+    version *also* appended it to any fact that still said "yesterday". That was
+    reverted: it grew the store 32% (a date in the text makes near-duplicates
+    look distinct, defeating dedupe) and moved no metric in two measured runs.
+    Carrying it as a field the embedding never sees is the right shape if this
+    is revisited — mutating the text that retrieval depends on is not.
+    """
     match = _DATED_TURN.match(turn)
     return match.group(1).strip() if match else ""
-
-
-def anchor_dates(turn: str, facts: list[CandidateFact]) -> list[CandidateFact]:
-    """Make sure a dated turn leaves dated facts.
-
-    The prompt asks the model to resolve "yesterday" against the turn's date,
-    and it often does — but calendar arithmetic ("the Sunday before 25 May
-    2023") is exactly the kind of thing a small model gets wrong half the time,
-    and asking a model to do what code can do reliably is the mistake this
-    project avoids everywhere else.
-
-    So the model is allowed to try, and this backstops it: any fact that still
-    carries an unresolved relative reference gets the turn's date appended. The
-    result is not as clean as a properly resolved date, but it is *answerable* —
-    "went to the support group yesterday (said on 7 May 2023)" can support a
-    question about when; "went to the support group yesterday" cannot.
-    """
-    said_on = turn_date(turn)
-    if not said_on:
-        return facts
-
-    anchored: list[CandidateFact] = []
-    for fact in facts:
-        if _UNRESOLVED.search(fact.text) and said_on not in fact.text:
-            anchored.append(fact.model_copy(update={"text": f"{fact.text} (said on {said_on})"}))
-        else:
-            anchored.append(fact)
-    return anchored
 
 
 # --- the offline stand-in ----------------------------------------------------
@@ -381,7 +352,7 @@ class RuleFactExtractor:
                     ttl_days=_TRANSIENT_TTL_DAYS if transient else None,
                 )
             )
-        return anchor_dates(turn, facts)
+        return facts
 
     @staticmethod
     def _is_fact(sentence: str, *, transient: bool) -> bool:

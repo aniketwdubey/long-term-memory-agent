@@ -338,6 +338,44 @@ for three reasons worth being explicit about:
 * **It annotates evidence turns, not facts worth keeping**, so the store-side
   precision and recall metrics have nothing to score against.
 
+#### What it measured, and why the number is what it is
+
+**26.7%** on one conversation (30 questions, live Nova + Titan). Before reading
+that as a verdict, look at what LoCoMo asks:
+
+> *"What are the main ingredients of the ice cream recipe shared by Nate?"*
+> *"What does John write on the whiteboard to help him stay motivated?"*
+> *"How many times has Jolene been to France?"*
+
+Now the extraction prompt, written deliberately:
+
+> *"Return facts ONLY when the turn states something about the user that would
+> still be useful weeks from now… Most turns contain nothing. Small talk, status
+> updates … are NOT facts."*
+
+**LoCoMo measures transcript recall. This system does user-profile
+distillation.** It scores 26.7% substantially *because it is working as
+designed* — it discards recipe ingredients and whiteboard slogans as chatter,
+and that discarding is what earns it 87.9% precision and 7.8 memories per user
+on the task it is actually for.
+
+So this number is reported, not optimised. Tuning for it would mean making
+extraction less selective, which trades away the precision that makes the system
+good at remembering a person. That trade is available and was not taken.
+
+Two things this cost me, recorded because the failures are the useful part.
+Adding session dates to the ingested text moved temporal accuracy not at all
+(31.2% before and after) — extraction was dropping the date while *keeping* the
+"yesterday" it anchored. Appending the date deterministically instead grew the
+store 32% (a date makes near-duplicates look distinct, defeating dedupe) and
+moved nothing again. Both attempts are reverted. The right shape, if this is
+revisited, is an `occurred_at` **field** the embedding never sees — mutating the
+text that retrieval depends on to carry metadata was the error.
+
+And at n=30 none of those differences were readable anyway. Small samples cannot
+distinguish a ten-point move from noise, which is the other reason not to tune
+here.
+
 Two details the format hides, both of which would have produced a wrong number:
 
 **`adversarial_answer` is a trap, not a gold answer.** Category 5 (446 of ~2000
