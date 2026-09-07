@@ -15,6 +15,7 @@ import pytest
 
 from engram.config import Settings
 from engram.eval.baselines.mem0_arm import (
+    MEM0_AVAILABLE,
     Mem0Agent,
     _to_memory,
     build_mem0_agent,
@@ -175,10 +176,24 @@ def test_a_missing_score_does_not_break_recall(settings: Settings) -> None:
 # --- wiring ------------------------------------------------------------------
 
 
+@pytest.mark.skipif(not MEM0_AVAILABLE, reason='needs: pip install -e ".[baseline]"')
 def test_the_baseline_refuses_to_run_against_the_stub() -> None:
-    """Silently running mem0 without an LLM would report a meaningless 0%."""
+    """Silently running mem0 without an LLM would report a meaningless 0%.
+
+    Skipped when mem0 is absent: the availability check fires first and this
+    would assert on the wrong error. The baseline is opt-in, so a plain `dev`
+    install must not fail here.
+    """
     with pytest.raises(RuntimeError, match="needs a real LLM"):
         build_mem0_agent(Settings(_env_file=None, chat_provider="stub"))  # type: ignore[call-arg]
+
+
+def test_an_absent_baseline_says_how_to_install_it() -> None:
+    """The other half: without the extra, the error must be actionable."""
+    if MEM0_AVAILABLE:
+        pytest.skip("mem0 is installed; this covers the absent case")
+    with pytest.raises(RuntimeError, match="baseline"):
+        build_mem0_agent(Settings(_env_file=None, chat_provider="bedrock"))  # type: ignore[call-arg]
 
 
 def test_telemetry_is_disabled_on_import() -> None:
