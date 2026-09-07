@@ -93,9 +93,21 @@ class LocomoTurn(BaseModel):
     dia_id: str = ""
     text: str
 
-    def rendered(self) -> str:
-        """Attributed text, so extraction can tell whose fact it is."""
-        return f"{self.speaker}: {self.text}"
+    def rendered(self, date_time: str = "") -> str:
+        """Attributed, dated text — both matter, for different reasons.
+
+        The speaker matters because LoCoMo is two people talking and its
+        questions ask about both, so extraction has to be able to tell whose
+        fact it is.
+
+        The date matters because a large share of LoCoMo's questions are
+        temporal ("When did Caroline go to the support group?" -> "7 May 2023").
+        The dataset puts session timestamps on the session, not the turn, so
+        dropping them here makes every one of those questions unanswerable no
+        matter how good the memory system is — the answer was never ingested.
+        """
+        prefix = f"[{date_time}] " if date_time else ""
+        return f"{prefix}{self.speaker}: {self.text}"
 
 
 class LocomoSession(BaseModel):
@@ -286,7 +298,12 @@ def run_conversation(
             # saved model calls are the difference between a runnable benchmark
             # and an unaffordable one. Provenance stays USER — this is the
             # conversation being remembered, not a document the agent read.
-            agent.observe(user, turn.rendered(), thread_id=session.key, source=Provenance.USER)
+            agent.observe(
+                user,
+                turn.rendered(session.date_time),
+                thread_id=session.key,
+                source=Provenance.USER,
+            )
             ingested += 1
 
     questions = conversation.questions[:max_questions] if max_questions else conversation.questions
