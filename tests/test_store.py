@@ -31,6 +31,37 @@ def test_memory_backend_indexes_at_the_embedders_dimensions() -> None:
         assert backend.store.index_config["fields"] == ["text", "slot_text"]
 
 
+def test_the_local_dsn_is_used_when_no_host_is_configured() -> None:
+    settings = Settings(_env_file=None)  # type: ignore[call-arg]
+    assert settings.resolved_dsn == settings.postgres_dsn
+
+
+def test_a_dsn_is_assembled_from_parts_when_a_host_is_set() -> None:
+    """Deployed, the password arrives on its own from Secrets Manager.
+
+    Baking it into a connection string would put it anywhere a DSN gets logged
+    or echoed, so the parts are configured separately and joined here.
+    """
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None,
+        postgres_host="db.internal",
+        postgres_port=5432,
+        postgres_user="engram",
+        postgres_password="secret",
+        postgres_db="engram",
+    )
+    assert settings.resolved_dsn == "postgresql://engram:secret@db.internal:5432/engram"
+
+
+def test_credentials_are_url_encoded() -> None:
+    """RDS generates passwords containing characters that break a raw URL."""
+    settings = Settings(  # type: ignore[call-arg]
+        _env_file=None, postgres_host="db.internal", postgres_password="p@ss/w#rd"
+    )
+    assert "p%40ss%2Fw%23rd" in settings.resolved_dsn
+    assert "@db.internal" in settings.resolved_dsn
+
+
 def test_unknown_backend_is_rejected() -> None:
     settings = Settings(_env_file=None)  # type: ignore[call-arg]
     with (

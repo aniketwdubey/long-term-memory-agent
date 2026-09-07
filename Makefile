@@ -1,5 +1,5 @@
 .PHONY: help install lint test eval eval-semantic eval-live eval-baseline \
-	locomo locomo-live check-bedrock serve trace-demo demo up down logs docker-demo clean
+	locomo locomo-live check-bedrock serve trace-demo demo cdk-synth cdk-deploy cdk-destroy up down logs docker-demo clean
 
 # Prefer uv when it is installed; fall back to the stdlib venv otherwise.
 UV := $(shell command -v uv 2>/dev/null)
@@ -73,6 +73,15 @@ logs:  ## Tail Postgres logs
 
 docker-demo: up  ## Run the demo in Docker against Postgres
 	docker compose --profile demo run --rm demo
+
+cdk-synth:  ## Render the deployment template (no AWS resources created)
+	cd infra && $(MAKE) synth
+
+cdk-deploy:  ## Deploy to AWS (creates real resources - RDS, VPC, NAT, ECS)
+	cd infra && $(MAKE) deploy
+
+cdk-destroy:  ## Tear the whole stack down, retaining nothing
+	cd infra && $(MAKE) destroy
 
 clean:
 	rm -rf $(VENV) .pytest_cache .ruff_cache .mypy_cache src/*.egg-info
