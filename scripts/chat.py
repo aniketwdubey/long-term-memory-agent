@@ -1,4 +1,4 @@
-"""Interactive REPL against the agent — the by-hand version of the demo.
+"""Interactive REPL against the agent: the by-hand version of the demo.
 
     python scripts/chat.py --user alice --thread monday
     python scripts/chat.py --user alice --thread thursday   # same user, new session

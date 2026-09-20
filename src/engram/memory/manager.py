@@ -22,8 +22,8 @@ allowed to write user memory at all — see :mod:`engram.memory.gate`.
 Deliberately, only step 1 of the pipeline as a whole uses a model — extraction
 normalises messy phrasing into slots (see :mod:`engram.memory.extract`). Every
 decision *here* is policy code over structured data, which means it is
-deterministic, unit-testable, and identical whether the extractor was Claude or
-the offline fixture. Asking a model "do these two facts contradict?" on every
+deterministic, unit-testable, and identical whether the extractor was a live
+model or the offline fixture. Asking a model "do these two facts contradict?" on every
 write would be slower, costlier, and impossible to pin down in a test.
 """
 

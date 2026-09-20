@@ -23,6 +23,7 @@ from engram.graph import Agent  # noqa: E402
 from engram.logging import configure_logging  # noqa: E402
 from engram.memory.write import MemoryOp  # noqa: E402
 from engram.store import open_backend  # noqa: E402
+from engram.tracing import configure_tracing  # noqa: E402
 
 USER = "demo-user"
 
@@ -52,6 +53,9 @@ def verdict(ok: bool, message: str) -> None:
 def main() -> int:
     settings = Settings()
     configure_logging(settings)
+    # Without this the spans are created against a no-op tracer and
+    # ENGRAM_OTEL_EXPORTER=console prints nothing at all.
+    configure_tracing(settings)
 
     print(
         f"{BOLD}engram demo{RESET}  ·  store={settings.store_backend} "
@@ -70,20 +74,23 @@ def main() -> int:
         # Start from a clean slate for this one demo user. Against Postgres the
         # store survives the process, so without this a second `make demo` shows
         # the previous run's memories and every count in the script is wrong.
-        stale = agent.reader.all_memories(USER)
-        for memory in stale:
-            backend.store.delete(memory.namespace(), memory.id)
-        if stale:
-            print(f"{DIM}(cleared {len(stale)} memories from a previous run){RESET}")
+        # Quarantine and transcripts have to go too, or Act 6 and Act 7 report
+        # the accumulated total of every run rather than this one's.
+        cleared = agent.forget(USER)
+        if cleared.memories_deleted or cleared.quarantine_deleted:
+            print(
+                f"{DIM}(cleared {cleared.memories_deleted} memories and "
+                f"{cleared.quarantine_deleted} quarantined items from a previous run){RESET}"
+            )
 
-        act(1, "Monday — a fact, buried in small talk")
+        act(1, "Monday: a fact, buried in small talk")
         say(agent, "monday", "Morning! The coffee machine is broken again.")
         say(agent, "monday", "I'm on the payments team and I prefer pytest for everything.")
         say(agent, "monday", "Anyway, I should get back to it.")
         stored = len(agent.reader.all_memories(USER))
-        verdict(stored < 3, f"kept {stored} memories from 3 turns — chatter was not stored")
+        verdict(stored < 3, f"kept {stored} memories from 3 turns; chatter was not stored")
 
-        act(2, "Thursday — a brand new session, no shared transcript")
+        act(2, "Thursday: a brand new session, no shared transcript")
         reply = say(agent, "thursday", "Scaffold me a test for the refund endpoint.")
         verdict("pytest" in reply.lower(), "recalled a fact across a session boundary")
 
@@ -98,22 +105,22 @@ def main() -> int:
         say(agent, "thursday", "Just so you know, I'm on the payments team.")
         verdict(
             len(agent.reader.all_memories(USER)) == before,
-            "recognised a fact it already knew — no duplicate written",
+            "recognised a fact it already knew, so no duplicate was written",
         )
 
-        act(5, "Friday — the user contradicts themselves")
+        act(5, "Friday: the user contradicts themselves")
         say(agent, "friday", "I'm on the platform team now.")
         say(agent, "next-monday", "Who should review my infrastructure change?")
 
         # Check what was *recalled*, not what the reply says. A correct system
         # can still echo the old value if it happens to appear inside the new
-        # fact's wording ("I've moved off payments — I'm on platform now"), so
+        # fact's wording ("I've moved off payments, I'm on platform now"), so
         # substring-matching the answer would report a failure that isn't one.
         recalled = agent.chat(USER, "next-monday", "Which team am I on again?").recalled
         values = {r.memory.value for r in recalled}
         verdict(
             "payments" not in values,
-            f"recalled {sorted(v for v in values if v)} — the retired fact was not among them",
+            f"recalled {sorted(v for v in values if v)}; the retired fact was not among them",
         )
 
         act(6, "A poisoned document reaches the agent")
@@ -134,14 +141,14 @@ def main() -> int:
         for decision in agent.chat(USER, "next-monday", pasted).decisions:
             print(f"  {DIM}       ↳ {decision.op.value.upper():<9} {decision.reason}{RESET}")
         legit = agent.chat(USER, "next-monday", "Remember that I prefer pytest.")
-        # Accepted OR recognised as already known — both mean the gate let it
+        # Accepted OR recognised as already known: both mean the gate let it
         # through. Requiring a *write* would fail whenever the fact is already
         # stored, which is exactly what happens on a second run.
         blocked = any(d.op is MemoryOp.QUARANTINE for d in legit.decisions)
         verdict(
             not blocked,
             "hostile text blocked, but 'Remember that I prefer pytest' passed "
-            "— a gate that blocks real requests is worse than no gate",
+            "(a gate that blocks real requests is worse than no gate)",
         )
 
         memories = agent.reader.all_memories(USER)
@@ -155,18 +162,18 @@ def main() -> int:
         if held:
             print(f"\n{BOLD}Quarantine{RESET}  ({len(held)} blocked, never recalled)")
             for item in held:
-                markers = ", ".join(item.get("markers") or []) or "—"  # type: ignore[arg-type]
+                markers = ", ".join(item.get("markers") or []) or "none"  # type: ignore[arg-type]
                 print(
                     f"  {DIM}{item['decision']:<20} {markers:<16} {str(item['text'])[:44]}{RESET}"
                 )
 
         print(
-            f"\n{DIM}Retired records are kept, not deleted — supersede with history, "
+            f"\n{DIM}Retired records are kept, not deleted: supersede with history, "
             f"so the store can explain what it used to believe. Quarantined text is "
             f"kept too, so an attempt is visible rather than silently dropped.{RESET}"
         )
 
-        act(8, '"Forget me" — the one thing that really is a delete')
+        act(8, '"Forget me": the one thing that really is a delete')
         report = agent.forget(USER)
         print(
             f"  deleted {report.memories_deleted} memories, "
@@ -178,7 +185,7 @@ def main() -> int:
             and not agent.quarantined(USER)
             and not agent.history("monday")
         )
-        verdict(gone, "memories, quarantine and transcripts are all gone — nothing retired")
+        verdict(gone, "memories, quarantine and transcripts are all gone, nothing retired")
 
     return 0
 

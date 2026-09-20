@@ -14,7 +14,7 @@ at, so extraction is where the LLM belongs.
 
 Two implementations, chosen by ``ENGRAM_CHAT_PROVIDER``:
 
-``LLMFactExtractor``   the real one — structured output from Claude on Bedrock.
+``LLMFactExtractor``   the real one — structured output from a Bedrock model.
 ``RuleFactExtractor``  a deterministic offline stand-in. **It is a test fixture,
                        not a small language model**, and its job is to make CI
                        hermetic while holding extraction quality constant, so

@@ -1,16 +1,16 @@
-"""Chat model provider: a deterministic offline stub, or Claude on Bedrock.
+"""Chat model provider: a deterministic offline stub, or Bedrock.
 
-Two providers behind one factory, the same shape project 07 uses. ``stub`` is
-the default so a fresh checkout runs tests, the demo and the whole eval harness
-with no credentials and no network.
+Two providers behind one factory. ``stub`` is the default so a fresh checkout
+runs tests, the demo and the whole eval harness with no credentials and no
+network.
 
 **What the stub is for, and what it is not.** It is not a language model and does
 not pretend to reason. It answers by reporting exactly the memories that were put
 in its context, which makes it a *transparent instrument*: an eval run against it
 measures the memory subsystem — did retrieval surface the right fact, did the
 write path store the wrong ones — with model quality held at a constant. That is
-the property a CI regression gate needs. Point ``ENGRAM_CHAT_PROVIDER=bedrock`` at
-real Claude to measure the pair together.
+the property a CI regression gate needs. Set ``ENGRAM_CHAT_PROVIDER=bedrock`` to
+measure the memory subsystem and a real model together.
 """
 
 from __future__ import annotations
@@ -114,8 +114,8 @@ def build_chat_model(settings: Settings) -> BaseChatModel:
     if settings.chat_provider == "bedrock":
         from langchain_aws import ChatBedrockConverse
 
-        # Sampling parameters are deliberately omitted: the current Claude
-        # models reject temperature/top_p/top_k with a 400.
+        # Sampling parameters are deliberately omitted: some Bedrock models
+        # reject temperature/top_p/top_k on Converse with a 400.
         return ChatBedrockConverse(
             model=settings.bedrock_model_id,
             region_name=settings.aws_region,

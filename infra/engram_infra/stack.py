@@ -35,9 +35,8 @@ from aws_cdk import aws_rds as rds
 from constructs import Construct
 
 # Express Mode exposes no runtimePlatform, so tasks run x86_64. The image must
-# be built to match: project 07 lost three deploys to an arm64 image on an
-# x86 runtime failing with "exec format error", and this is the same trap from
-# the other direction.
+# be built to match, or an arm64 image built on an Apple Silicon laptop fails at
+# task start with "exec format error".
 IMAGE_PLATFORM = ecr_assets.Platform.LINUX_AMD64
 
 CONTAINER_PORT = 8000
@@ -142,8 +141,8 @@ class EngramStack(cdk.Stack):
             iam.PolicyStatement(
                 actions=[
                     "bedrock:InvokeModel",
-                    # Converse-style clients stream; 07 learned this the hard way
-                    # with a 403 on first deploy when only InvokeModel was granted.
+                    # Converse-style clients stream, so granting only
+                    # InvokeModel produces a 403 on the first real call.
                     "bedrock:InvokeModelWithResponseStream",
                 ],
                 resources=[
