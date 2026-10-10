@@ -190,6 +190,21 @@ def test_an_unslotted_fact_needs_no_value(backend: Backend) -> None:
     assert len(m.apply("alice", "Always show the SQL before running it").written) == 1
 
 
+def test_a_misfiled_medication_cannot_supersede_the_users_diet(backend: Backend) -> None:
+    """The live model filed insulin as diet; it must not erase vegetarian."""
+    m = manager(
+        backend,
+        [fact("Is vegetarian", "diet", "vegetarian")],
+        [fact("Takes insulin for diabetes", "diet", "insulin")],
+    )
+    m.apply("alice", "I'm vegetarian.")
+    report = m.apply("alice", "I take insulin for diabetes.")
+
+    assert not any(d.op is MemoryOp.SUPERSEDE for d in report.decisions)
+    assert {x.attribute for x in active(backend)} == {"diet", ""}
+    assert next(x.value for x in active(backend) if x.attribute == "diet") == "vegetarian"
+
+
 # --- conflict resolution -----------------------------------------------------
 
 

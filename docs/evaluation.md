@@ -108,7 +108,7 @@ end-to-end selection using Nova Lite and Titan:
 
 | Metric | Earlier guard, new run | Grammar guard, new run |
 |---|---:|---:|
-| Answer accuracy | 75.0% | **100.0%** |
+| Probe substring pass | 75.0% | **100.0%** |
 | Memory-store precision | 48.8% | **81.1%** |
 | Labeled-fact recall | 69.6% | **76.8%** |
 | Memories stored per user | 10.0 | **6.6** |
@@ -117,8 +117,11 @@ end-to-end selection using Nova Lite and Titan:
 Both runs used eight cases, so single-case flips are large. The older 31.6%
 result was also eight cases but not a paired saved run. These numbers support
 the guard on this selection; they do not establish its precision on arbitrary
-conversation traffic. The grammar guard is local at the time of this report
-and has not yet been deployed.
+conversation traffic. The probe score detects expected/forbidden substrings,
+not factual grounding of the entire reply. A saved passing answer invented a
+named restaurant and details about it, so the 100% figure is not general
+answer quality. The grammar guard is local at the time of this report and has
+not yet been deployed.
 
 ---
 

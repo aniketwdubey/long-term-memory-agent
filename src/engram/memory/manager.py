@@ -30,6 +30,7 @@ write would be slower, costlier, and impossible to pin down in a test.
 from __future__ import annotations
 
 import math
+import re
 from datetime import timedelta
 from typing import TYPE_CHECKING
 
@@ -61,6 +62,11 @@ _DEDUPE_CANDIDATES = 10
 # supersede it — so the agent forgets something true because it was asked a
 # question about it.
 _NON_VALUES = frozenset({"", "unknown", "unspecified", "none", "n/a", "na", "null", "?"})
+_DIET_EVIDENCE = re.compile(
+    r"\b(?:diet|dietary|eat|eating|food|meal|vegetarian|vegan|"
+    r"pescatarian|keto|halal|kosher|gluten|meat|dairy)\b",
+    re.IGNORECASE,
+)
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -154,7 +160,7 @@ class MemoryManager:
             log.debug("memory.extract.empty", user_id=user_id, chars=len(text))
             return WriteReport()
 
-        candidates = [self._verify_ttl(c, text) for c in candidates]
+        candidates = [self._verify_slot(self._verify_ttl(c, text), text) for c in candidates]
         candidates = [c for c in candidates if self._is_usable(c)]
         if not candidates:
             return WriteReport()
@@ -231,6 +237,20 @@ class MemoryManager:
             proposed_ttl_days=candidate.ttl_days,
         )
         return candidate.model_copy(update={"ttl_days": None})
+
+    @staticmethod
+    def _verify_slot(candidate: CandidateFact, turn: str) -> CandidateFact:
+        """Prevent an unsupported diet slot from retiring a real dietary fact.
+
+        A live model classified "takes insulin for diabetes" as ``diet=insulin``.
+        Its text is worth retaining, but occupying the diet slot would supersede
+        an unrelated fact such as "vegetarian". Keep the candidate unslotted
+        when the user's own words provide no dietary evidence.
+        """
+        if candidate.attribute == "diet" and not _DIET_EVIDENCE.search(turn):
+            log.debug("memory.slot.rejected", attribute="diet", candidate=candidate.text)
+            return candidate.model_copy(update={"attribute": "", "value": ""})
+        return candidate
 
     def _resolve(
         self,

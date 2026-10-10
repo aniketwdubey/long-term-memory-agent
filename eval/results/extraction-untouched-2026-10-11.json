@@ -1,0 +1,583 @@
+{
+  "schema_version": 1,
+  "cases_sha256": "e99a70d968a2665bc12b83d0bd345e39b7b0456513af91f50da115b7832d113e",
+  "prompt_sha256": "41cc826d994b6509662894d579b87ea64eb2235733e8ea6c8451536c5715b5f5",
+  "model_id": "amazon.nova-lite-v1:0",
+  "aws_region": "us-east-1",
+  "summary": {
+    "development": {
+      "turns": 20,
+      "positive_turns": 10,
+      "negative_turns": 10,
+      "true_positive": 9,
+      "false_positive": 2,
+      "false_negative": 1,
+      "turn_precision": 0.8182,
+      "positive_recall": 0.9,
+      "negative_rejection": 0.8
+    },
+    "holdout": {
+      "turns": 20,
+      "positive_turns": 10,
+      "negative_turns": 10,
+      "true_positive": 10,
+      "false_positive": 1,
+      "false_negative": 0,
+      "turn_precision": 0.9091,
+      "positive_recall": 1.0,
+      "negative_rejection": 0.9
+    }
+  },
+  "cases": [
+    {
+      "id": "u01",
+      "split": "development",
+      "turn": "I learned a fun fact at lunch.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u02",
+      "split": "development",
+      "turn": "I just bought a sandwich.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u03",
+      "split": "development",
+      "turn": "We had a long standup today.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u04",
+      "split": "development",
+      "turn": "My neighbour's car broke down.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u05",
+      "split": "development",
+      "turn": "Please add TypeScript to this project.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u06",
+      "split": "development",
+      "turn": "What is my timezone?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u07",
+      "split": "development",
+      "turn": "I need to open the pull request by noon.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u08",
+      "split": "development",
+      "turn": "I thought we could deploy tomorrow.",
+      "expected": "",
+      "result": "false_positive",
+      "facts": [
+        {
+          "text": "User plans to deploy tomorrow.",
+          "attribute": "",
+          "value": "",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": 1
+        }
+      ]
+    },
+    {
+      "id": "u09",
+      "split": "development",
+      "turn": "I left my umbrella on the train.",
+      "expected": "",
+      "result": "false_positive",
+      "facts": [
+        {
+          "text": "The user left their umbrella on the train.",
+          "attribute": "",
+          "value": "",
+          "scope": "",
+          "kind": "episodic",
+          "importance": 0.2,
+          "ttl_days": 1
+        }
+      ]
+    },
+    {
+      "id": "u10",
+      "split": "development",
+      "turn": "Our design review ran late yesterday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u11",
+      "split": "holdout",
+      "turn": "My dog sneezed once this morning.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u12",
+      "split": "holdout",
+      "turn": "I took the bus once because my car broke.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u13",
+      "split": "holdout",
+      "turn": "The meeting room is chilly again.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u14",
+      "split": "holdout",
+      "turn": "I would like you to review this file.",
+      "expected": "",
+      "result": "false_positive",
+      "facts": [
+        {
+          "text": "The user would like a file reviewed.",
+          "attribute": "",
+          "value": "",
+          "scope": "",
+          "kind": "procedural",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u15",
+      "split": "holdout",
+      "turn": "We need to order office chairs.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u16",
+      "split": "holdout",
+      "turn": "I hope the incident ends soon.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u17",
+      "split": "holdout",
+      "turn": "I have to leave for the doctor now.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u18",
+      "split": "holdout",
+      "turn": "We tried FastAPI for one spike.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u19",
+      "split": "holdout",
+      "turn": "My manager joined the marketing team.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u20",
+      "split": "holdout",
+      "turn": "I was thinking about moving to Berlin.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "u21",
+      "split": "development",
+      "turn": "I study astrophysics at university.",
+      "expected": "astrophysics",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user studies astrophysics at university.",
+          "attribute": "",
+          "value": "",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u22",
+      "split": "development",
+      "turn": "I speak three languages including Marathi.",
+      "expected": "Marathi",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user speaks three languages including Marathi.",
+          "attribute": "language",
+          "value": "Marathi",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u23",
+      "split": "development",
+      "turn": "My emergency contact is my sister Ravi.",
+      "expected": "Ravi",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Ravi is my emergency contact.",
+          "attribute": "emergency_contact",
+          "value": "Ravi",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": 1095
+        }
+      ]
+    },
+    {
+      "id": "u24",
+      "split": "development",
+      "turn": "I drive a wheelchair-accessible van.",
+      "expected": "wheelchair",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user drives a wheelchair-accessible van.",
+          "attribute": "editor",
+          "value": "wheelchair-accessible van",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u25",
+      "split": "development",
+      "turn": "We host our app on Azure.",
+      "expected": "Azure",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The team hosts their app on Azure.",
+          "attribute": "cloud",
+          "value": "Azure",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u26",
+      "split": "development",
+      "turn": "I coach youth football on Saturdays.",
+      "expected": "football",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User coaches youth football on Saturdays.",
+          "attribute": "role",
+          "value": "youth football coach",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u27",
+      "split": "development",
+      "turn": "I am allergic to shellfish.",
+      "expected": "shellfish",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user is allergic to shellfish.",
+          "attribute": "allergy",
+          "value": "shellfish",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u28",
+      "split": "development",
+      "turn": "Please always respond in Bengali.",
+      "expected": "Bengali",
+      "result": "wrong_fact",
+      "facts": [
+        {
+          "text": "\u09ac\u09cd\u09af\u09ac\u09b9\u09be\u09b0\u0995\u09be\u09b0\u09c0\u09b0 \u0985\u09a8\u09c1\u09b0\u09cb\u09a7 \u09b9\u09b2 \u09b8\u09ac\u09b8\u09ae\u09af\u09bc \u09ac\u09be\u0982\u09b2\u09be \u09ad\u09be\u09b7\u09be\u09af\u09bc \u0989\u09a4\u09cd\u09a4\u09b0 \u09a6\u09c7\u0993\u09af\u09bc\u09be \u09b9\u09ac\u09c7\u0964",
+          "attribute": "communication_preference",
+          "value": "\u09ac\u09be\u0982\u09b2\u09be",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": 21
+        }
+      ]
+    },
+    {
+      "id": "u29",
+      "split": "development",
+      "turn": "I don't drink alcohol.",
+      "expected": "alcohol",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User does not drink alcohol.",
+          "attribute": "diet",
+          "value": "no alcohol",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": 1095
+        }
+      ]
+    },
+    {
+      "id": "u30",
+      "split": "development",
+      "turn": "I joined a new employer, Acme, permanently.",
+      "expected": "Acme",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user has joined a new employer, Acme, permanently.",
+          "attribute": "employer",
+          "value": "Acme",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u31",
+      "split": "holdout",
+      "turn": "I've been living in Kochi for five years.",
+      "expected": "Kochi",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User has been living in Kochi for five years.",
+          "attribute": "location",
+          "value": "Kochi",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u32",
+      "split": "holdout",
+      "turn": "I prefer tabs over spaces.",
+      "expected": "tabs",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User prefers tabs over spaces.",
+          "attribute": "editor",
+          "value": "tabs",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u33",
+      "split": "holdout",
+      "turn": "Our API uses Django.",
+      "expected": "Django",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Our API uses Django.",
+          "attribute": "web_framework",
+          "value": "Django",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u34",
+      "split": "holdout",
+      "turn": "My standing desk is adjustable.",
+      "expected": "desk",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user has an adjustable standing desk.",
+          "attribute": "standing_desk",
+          "value": "adjustable",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.7,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u35",
+      "split": "holdout",
+      "turn": "I routinely walk to work.",
+      "expected": "walk",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user routinely walks to work.",
+          "attribute": "commute_mode",
+          "value": "walking",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u36",
+      "split": "holdout",
+      "turn": "My daughter is eight.",
+      "expected": "daughter",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user has a daughter who is eight years old.",
+          "attribute": "family",
+          "value": "daughter_age_8",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u37",
+      "split": "holdout",
+      "turn": "I have type 1 diabetes.",
+      "expected": "diabetes",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user has type 1 diabetes.",
+          "attribute": "diet",
+          "value": "type 1 diabetes",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u38",
+      "split": "holdout",
+      "turn": "The language I write in is Python.",
+      "expected": "Python",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user writes in Python.",
+          "attribute": "language",
+          "value": "Python",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u39",
+      "split": "holdout",
+      "turn": "I switched teams from payments to platform.",
+      "expected": "platform",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user switched teams from payments to platform.",
+          "attribute": "team",
+          "value": "platform",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "u40",
+      "split": "holdout",
+      "turn": "I adopted a dog named Luna.",
+      "expected": "Luna",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user adopted a dog named Luna.",
+          "attribute": "pet_name",
+          "value": "Luna",
+          "scope": "",
+          "kind": "episodic",
+          "importance": 0.8,
+          "ttl_days": 365
+        }
+      ]
+    }
+  ]
+}

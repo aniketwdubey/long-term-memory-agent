@@ -106,7 +106,9 @@ _QUESTION_START = re.compile(
     re.IGNORECASE,
 )
 _HYPOTHETICAL_START = re.compile(
-    r"^(?:maybe|perhaps|(?:i|we)\s+(?:might|may|could|should))\b", re.IGNORECASE
+    r"^(?:maybe|perhaps|(?:i|we)\s+(?:might|may|could|should)|"
+    r"i\s+(?:think|guess)\s+(?:i|we)\s+should)\b",
+    re.IGNORECASE,
 )
 _OTHER_PERSON_START = re.compile(
     r"^my\s+(?:sister|brother|mother|father|parent|friend|neighbou?r|"
@@ -135,6 +137,9 @@ _DEVICE_COMPLAINT = re.compile(
     r"(?:terrible|slow|flaky|broken|loud)\b",
     re.IGNORECASE,
 )
+_EPHEMERAL_SELF_ACTIVITY = re.compile(
+    r"\bi\s+(?:log\s+off|keep\s+forgetting\s+to)\b", re.IGNORECASE
+)
 _ONGOING_TASK = re.compile(
     r"^i'?m\s+(?:reviewing|debugging|checking|looking at|fixing|considering)\b",
     re.IGNORECASE,
@@ -146,8 +151,25 @@ _ADDITIONAL_STATES = re.compile(
     r"(?:have|need)(?!\s+to\b))\b",
     re.IGNORECASE,
 )
+_POSSIBLE_PRESENT_SELF_STATEMENT = re.compile(
+    r"\b(?:i|we)\s+(?:(?:always|usually|often|regularly|generally)\s+)?"
+    r"(?!have\s+to\b|need\s+to\b)"
+    r"(?!see\b|want\b|think\b|guess\b|wonder\b|had\b|was\b|were\b|"
+    r"did\b|met\b|went\b|ate\b|saw\b|got\b|paid\b|sat\b|ran\b|"
+    r"bought\b|found\b|took\b|made\b|said\b|will\b|would\b|could\b|"
+    r"should\b|might\b|may\b|can\b|"
+    r"just\b|finally\b|recently\b)"
+    r"(?![a-z]+ed\b)[a-z]{3,}\b",
+    re.IGNORECASE,
+)
+_LASTING_LIFE_CHANGE = re.compile(
+    r"^i\s+(?:changed\s+my\s+(?:legal\s+)?name\b|got\s+promoted\b|"
+    r"was\s+diagnosed\s+with\b|became\s+(?:an?\s+)?parent\b|"
+    r"adopted\s+(?:an?\s+)?(?:dog|cat|pet)\b)",
+    re.IGNORECASE,
+)
 _TEAM_TECH_STATE = re.compile(
-    r"^our\s+(?:backend|frontend|service|stack|database|codebase|infrastructure)\s+"
+    r"^our\s+(?:api|backend|frontend|service|stack|database|codebase|infrastructure)\s+"
     r"(?:runs|uses|is)\b",
     re.IGNORECASE,
 )
@@ -173,6 +195,8 @@ def _could_state_a_profile_fact(body: str, *, dated: bool) -> bool:
         return bool(_PROFILE_AFTER_COMMA.search(body))
     if _DATED_ACTIVITY.match(body) or _DEVICE_COMPLAINT.match(body):
         return False
+    if _EPHEMERAL_SELF_ACTIVITY.search(body):
+        return bool(_PROFILE_AFTER_COMMA.search(body))
     if _ONE_OFF_EVENT.match(body) or _ERRAND.match(body):
         return bool(_PROFILE_AFTER_COMMA.search(body))
     if _ONGOING_TASK.match(body):
@@ -187,9 +211,13 @@ def _could_state_a_profile_fact(body: str, *, dated: bool) -> bool:
     # profile verb. Keep the existing temporal benchmark path reachable.
     if dated and _DATED_PERSONAL_EVENT.match(body):
         return True
-    return bool(_ADDITIONAL_STATES.search(body) or _TEAM_TECH_STATE.search(body)) or any(
-        pattern.search(body) for pattern in _FACT_PATTERNS
-    )
+    if _LASTING_LIFE_CHANGE.match(body):
+        return True
+    return bool(
+        _ADDITIONAL_STATES.search(body)
+        or _TEAM_TECH_STATE.search(body)
+        or _POSSIBLE_PRESENT_SELF_STATEMENT.search(body)
+    ) or any(pattern.search(body) for pattern in _FACT_PATTERNS)
 
 
 def _clearly_not_a_profile_update(turn: str) -> bool:
@@ -198,7 +226,7 @@ def _clearly_not_a_profile_update(turn: str) -> bool:
     body = _SPEAKER_PREFIX.sub("", _DATED_TURN.sub("", turn.strip()))
     return not any(
         _could_state_a_profile_fact(clause.strip(), dated=dated)
-        for clause in re.split(r"(?<=[.!?])\s+", body)
+        for clause in _SENTENCE_SPLIT.split(body)
         if clause.strip()
     )
 

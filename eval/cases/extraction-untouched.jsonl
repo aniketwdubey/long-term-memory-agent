@@ -1,0 +1,41 @@
+# Final additional synthetic set. Freeze before its first model run; do not tune on its result.
+{"id":"u01","split":"development","turn":"I learned a fun fact at lunch.","expected":""}
+{"id":"u02","split":"development","turn":"I just bought a sandwich.","expected":""}
+{"id":"u03","split":"development","turn":"We had a long standup today.","expected":""}
+{"id":"u04","split":"development","turn":"My neighbour's car broke down.","expected":""}
+{"id":"u05","split":"development","turn":"Please add TypeScript to this project.","expected":""}
+{"id":"u06","split":"development","turn":"What is my timezone?","expected":""}
+{"id":"u07","split":"development","turn":"I need to open the pull request by noon.","expected":""}
+{"id":"u08","split":"development","turn":"I thought we could deploy tomorrow.","expected":""}
+{"id":"u09","split":"development","turn":"I left my umbrella on the train.","expected":""}
+{"id":"u10","split":"development","turn":"Our design review ran late yesterday.","expected":""}
+{"id":"u11","split":"holdout","turn":"My dog sneezed once this morning.","expected":""}
+{"id":"u12","split":"holdout","turn":"I took the bus once because my car broke.","expected":""}
+{"id":"u13","split":"holdout","turn":"The meeting room is chilly again.","expected":""}
+{"id":"u14","split":"holdout","turn":"I would like you to review this file.","expected":""}
+{"id":"u15","split":"holdout","turn":"We need to order office chairs.","expected":""}
+{"id":"u16","split":"holdout","turn":"I hope the incident ends soon.","expected":""}
+{"id":"u17","split":"holdout","turn":"I have to leave for the doctor now.","expected":""}
+{"id":"u18","split":"holdout","turn":"We tried FastAPI for one spike.","expected":""}
+{"id":"u19","split":"holdout","turn":"My manager joined the marketing team.","expected":""}
+{"id":"u20","split":"holdout","turn":"I was thinking about moving to Berlin.","expected":""}
+{"id":"u21","split":"development","turn":"I study astrophysics at university.","expected":"astrophysics"}
+{"id":"u22","split":"development","turn":"I speak three languages including Marathi.","expected":"Marathi"}
+{"id":"u23","split":"development","turn":"My emergency contact is my sister Ravi.","expected":"Ravi"}
+{"id":"u24","split":"development","turn":"I drive a wheelchair-accessible van.","expected":"wheelchair"}
+{"id":"u25","split":"development","turn":"We host our app on Azure.","expected":"Azure"}
+{"id":"u26","split":"development","turn":"I coach youth football on Saturdays.","expected":"football"}
+{"id":"u27","split":"development","turn":"I am allergic to shellfish.","expected":"shellfish"}
+{"id":"u28","split":"development","turn":"Please always respond in Bengali.","expected":"Bengali"}
+{"id":"u29","split":"development","turn":"I don't drink alcohol.","expected":"alcohol"}
+{"id":"u30","split":"development","turn":"I joined a new employer, Acme, permanently.","expected":"Acme"}
+{"id":"u31","split":"holdout","turn":"I've been living in Kochi for five years.","expected":"Kochi"}
+{"id":"u32","split":"holdout","turn":"I prefer tabs over spaces.","expected":"tabs"}
+{"id":"u33","split":"holdout","turn":"Our API uses Django.","expected":"Django"}
+{"id":"u34","split":"holdout","turn":"My standing desk is adjustable.","expected":"desk"}
+{"id":"u35","split":"holdout","turn":"I routinely walk to work.","expected":"walk"}
+{"id":"u36","split":"holdout","turn":"My daughter is eight.","expected":"daughter"}
+{"id":"u37","split":"holdout","turn":"I have type 1 diabetes.","expected":"diabetes"}
+{"id":"u38","split":"holdout","turn":"The language I write in is Python.","expected":"Python"}
+{"id":"u39","split":"holdout","turn":"I switched teams from payments to platform.","expected":"platform"}
+{"id":"u40","split":"holdout","turn":"I adopted a dog named Luna.","expected":"Luna"}
