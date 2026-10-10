@@ -1,5 +1,5 @@
 .PHONY: help install lint test eval eval-semantic eval-live eval-baseline \
-	locomo locomo-live check-bedrock serve trace-demo demo cdk-synth cdk-deploy cdk-destroy up down logs docker-demo clean
+	locomo locomo-live check-bedrock serve serve-demo trace-demo demo cdk-synth cdk-deploy cdk-destroy up down logs docker-demo clean
 
 # Prefer uv when it is installed; fall back to the stdlib venv otherwise.
 UV := $(shell command -v uv 2>/dev/null)
@@ -55,6 +55,9 @@ check-bedrock:  ## Preflight the live path and compare Nova models
 
 serve:  ## Run the HTTP API on :8000 (docs at /docs)
 	$(VENV)/bin/uvicorn engram.api.main:app --reload --port 8000
+
+serve-demo:  ## Local loopback API with authentication explicitly disabled
+	ENGRAM_AUTH_MODE=disabled $(MAKE) serve
 
 trace-demo:  ## Print OpenTelemetry spans for a couple of turns
 	ENGRAM_OTEL_EXPORTER=console ENGRAM_LOG_LEVEL=ERROR $(PY) scripts/demo.py

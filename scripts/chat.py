@@ -57,7 +57,7 @@ def main() -> int:
                     print(f"  {flag} [{m.kind.value:<10} {m.source.value:<8}] {m.text}")
                 continue
             if line == "/history":
-                for entry in agent.history(args.thread):
+                for entry in agent.history(args.user, args.thread):
                     print(f"  {entry}")
                 continue
 

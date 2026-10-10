@@ -4,7 +4,7 @@ The design goal here is that **nothing about the application changes**. The
 container is the image `docker compose` already builds, and the database is the
 same PostgreSQL with the same pgvector extension the local container runs — so
 ``PostgresStore`` and ``PostgresSaver`` are the identical, official LangGraph
-classes the 237 offline tests exercise. There is no cloud-only storage adapter,
+classes the optional PostgreSQL durability tests exercise. There is no cloud-only storage adapter,
 which means the deployed system is the tested system rather than a sibling of it.
 
 That property is why this is RDS and not a vector database. Postgres does two
@@ -13,9 +13,8 @@ vector-native replacement (S3 Vectors, OpenSearch) covers only the first, leavin
 transcripts homeless and requiring a hand-written ``BaseStore`` on top. Once a
 relational store has to exist anyway, pgvector comes with it for free.
 
-Compute is **ECS Express Mode**, AWS's successor to App Runner (sunset April
-2026). It takes a container image and returns a managed HTTPS endpoint with
-autoscaling, which is the whole requirement. Lambda was rejected deliberately:
+Compute is **ECS Express Mode**. It takes a container image and returns a managed
+HTTPS endpoint with autoscaling, which is the whole requirement. Lambda was rejected deliberately:
 this app holds a Postgres connection pool for its process lifetime, and Lambda's
 model would rebuild that pool on every cold start and multiply connections
 against the instance limit under concurrency.
@@ -26,6 +25,7 @@ Everything is `RemovalPolicy.DESTROY`. `make destroy` should leave nothing behin
 from __future__ import annotations
 
 import aws_cdk as cdk
+from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_ec2 as ec2
 from aws_cdk import aws_ecr_assets as ecr_assets
 from aws_cdk import aws_ecs as ecs
@@ -74,9 +74,7 @@ class EngramStack(cdk.Stack):
         database = rds.DatabaseInstance(
             self,
             "Database",
-            engine=rds.DatabaseInstanceEngine.postgres(
-                version=rds.PostgresEngineVersion.VER_17_6
-            ),
+            engine=rds.DatabaseInstanceEngine.postgres(version=rds.PostgresEngineVersion.VER_17_6),
             # Burstable Graviton: this workload is small and bursty, and the
             # instance class is unrelated to the container's architecture.
             instance_type=ec2.InstanceType.of(
@@ -101,6 +99,36 @@ class EngramStack(cdk.Stack):
             removal_policy=cdk.RemovalPolicy.DESTROY,
         )
         assert database.secret is not None
+
+        # Each authenticated subject owns its memories and conversations.
+        user_pool = cognito.UserPool(
+            self,
+            "UserPool",
+            self_sign_up_enabled=True,
+            sign_in_aliases=cognito.SignInAliases(email=True),
+            sign_in_case_sensitive=False,
+            auto_verify=cognito.AutoVerifiedAttrs(email=True),
+            standard_attributes=cognito.StandardAttributes(
+                email=cognito.StandardAttribute(required=True, mutable=True)
+            ),
+            password_policy=cognito.PasswordPolicy(min_length=12),
+            account_recovery=cognito.AccountRecovery.EMAIL_ONLY,
+            mfa=cognito.Mfa.OPTIONAL,
+            mfa_second_factor=cognito.MfaSecondFactor(otp=True, sms=False),
+            removal_policy=cdk.RemovalPolicy.DESTROY,
+        )
+        user_pool_client = user_pool.add_client(
+            "AppClient",
+            generate_secret=False,
+            auth_flows=cognito.AuthFlow(user_srp=True),
+            disable_o_auth=True,
+            prevent_user_existence_errors=True,
+            enable_token_revocation=True,
+            access_token_validity=cdk.Duration.minutes(5),
+            id_token_validity=cdk.Duration.minutes(5),
+            refresh_token_validity=cdk.Duration.days(7),
+            refresh_token_rotation_grace_period=cdk.Duration.seconds(10),
+        )
 
         # --- image --------------------------------------------------------
         image = ecr_assets.DockerImageAsset(
@@ -187,9 +215,7 @@ class EngramStack(cdk.Stack):
             # attributes), and it places that load balancer in the subnets given
             # here. Public subnets therefore, or the managed endpoint comes up
             # internal and the whole point of deploying — a URL you can open —
-            # is lost. This is the one assumption in the stack not verified
-            # against a real deploy; if the endpoint resolves but does not
-            # answer, this is the first thing to check.
+            # is lost. The public endpoint was verified in the original deploy.
             network_configuration=ecs.CfnExpressGatewayService.ExpressGatewayServiceNetworkConfigurationProperty(
                 subnets=vpc.select_subnets(subnet_type=ec2.SubnetType.PUBLIC).subnet_ids,
                 security_groups=[app_sg.security_group_id],
@@ -216,6 +242,9 @@ class EngramStack(cdk.Stack):
                     log_stream_prefix="engram",
                 ),
                 environment=[
+                    _env("ENGRAM_AUTH_MODE", "cognito"),
+                    _env("ENGRAM_COGNITO_USER_POOL_ID", user_pool.user_pool_id),
+                    _env("ENGRAM_COGNITO_CLIENT_ID", user_pool_client.user_pool_client_id),
                     _env("ENGRAM_STORE_BACKEND", "postgres"),
                     _env("ENGRAM_POSTGRES_HOST", database.db_instance_endpoint_address),
                     _env("ENGRAM_POSTGRES_PORT", database.db_instance_endpoint_port),
@@ -252,6 +281,8 @@ class EngramStack(cdk.Stack):
         cdk.CfnOutput(self, "DatabaseSecretArn", value=secret_arn)
         cdk.CfnOutput(self, "LogGroup", value=log_group.log_group_name)
         cdk.CfnOutput(self, "ServiceUrl", value=service.attr_endpoint)
+        cdk.CfnOutput(self, "UserPoolId", value=user_pool.user_pool_id)
+        cdk.CfnOutput(self, "UserPoolClientId", value=user_pool_client.user_pool_client_id)
 
 
 def _env(name: str, value: str) -> ecs.CfnExpressGatewayService.KeyValuePairProperty:

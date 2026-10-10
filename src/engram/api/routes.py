@@ -23,11 +23,12 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, ConfigDict, Field
 
+from engram.api.auth import UserDep, current_user, require_owner
 from engram.graph import Agent
 from engram.memory.forget import ForgetReport
 from engram.schemas import Memory, Provenance
 
-router = APIRouter(prefix="/v1")
+router = APIRouter(prefix="/v1", dependencies=[Depends(current_user)])
 
 
 def get_agent(request: Request) -> Agent:
@@ -128,8 +129,9 @@ class MemoriesResponse(BaseModel):
 
 
 @router.post("/chat", response_model=ChatResponse)
-def chat(body: ChatRequest, agent: AgentDep) -> ChatResponse:
+def chat(body: ChatRequest, agent: AgentDep, subject: UserDep) -> ChatResponse:
     """One turn: recall, respond, remember."""
+    require_owner(subject, body.user_id)
     trace = agent.chat(body.user_id, body.thread_id, body.message)
     return ChatResponse(
         reply=trace.reply,
@@ -143,13 +145,18 @@ def chat(body: ChatRequest, agent: AgentDep) -> ChatResponse:
 
 
 @router.post("/observe", response_model=ObserveResponse)
-def observe(body: ObserveRequest, agent: AgentDep) -> ObserveResponse:
+def observe(body: ObserveRequest, agent: AgentDep, subject: UserDep) -> ObserveResponse:
     """Feed the agent content it read rather than content the user said.
 
     Separate from ``/chat`` so provenance is explicit at the call site: text the
     agent merely read must never be able to arrive looking like the user
     speaking.
     """
+    require_owner(subject, body.user_id)
+    if body.source not in (Provenance.TOOL, Provenance.DOCUMENT):
+        raise HTTPException(
+            422, "Observed content must come from a tool or document; use /chat for user input"
+        )
     report = agent.observe(body.user_id, body.text, thread_id=body.thread_id, source=body.source)
     return ObserveResponse(
         written=[MemoryOut.of(m) for m in report.written],
@@ -161,13 +168,16 @@ def observe(body: ObserveRequest, agent: AgentDep) -> ObserveResponse:
 
 
 @router.get("/memories/{user_id}", response_model=MemoriesResponse)
-def list_memories(user_id: str, agent: AgentDep, include_retired: bool = True) -> MemoriesResponse:
+def list_memories(
+    user_id: str, agent: AgentDep, subject: UserDep, include_retired: bool = True
+) -> MemoriesResponse:
     """Everything stored about a user, retired records included by default.
 
     Retired records are shown because hiding them would make the store look
     tidier than it is: a superseded fact still exists, and anyone auditing what
     is held about them should see it.
     """
+    require_owner(subject, user_id)
     memories = agent.reader.all_memories(user_id)
     shown = memories if include_retired else [m for m in memories if m.is_active()]
     return MemoriesResponse(
@@ -179,39 +189,52 @@ def list_memories(user_id: str, agent: AgentDep, include_retired: bool = True) -
 
 
 @router.get("/memories/{user_id}/history/{thread_id}")
-def thread_history(user_id: str, thread_id: str, agent: AgentDep) -> dict[str, Any]:
+def thread_history(
+    user_id: str, thread_id: str, agent: AgentDep, subject: UserDep
+) -> dict[str, Any]:
     """The transcript of one conversation, from the checkpointer."""
-    return {"user_id": user_id, "thread_id": thread_id, "history": agent.history(thread_id)}
+    require_owner(subject, user_id)
+    return {
+        "user_id": user_id,
+        "thread_id": thread_id,
+        "history": agent.history(user_id, thread_id),
+    }
 
 
 @router.get("/quarantine/{user_id}")
-def quarantine(user_id: str, agent: AgentDep) -> dict[str, Any]:
+def quarantine(user_id: str, agent: AgentDep, subject: UserDep) -> dict[str, Any]:
     """Content the injection gate refused, kept so an attempt stays visible."""
+    require_owner(subject, user_id)
     held = agent.quarantined(user_id)
     return {"user_id": user_id, "count": len(held), "items": held}
 
 
 @router.delete("/memories/{user_id}", response_model=ForgetReport)
-def forget_user(user_id: str, agent: AgentDep) -> ForgetReport:
+def forget_user(user_id: str, agent: AgentDep, subject: UserDep) -> ForgetReport:
     """Erase a user: memories, quarantine and every transcript.
 
     A hard delete, not a supersession — including retired records, since a
     superseded memory still says where someone used to live.
     """
+    require_owner(subject, user_id)
     return agent.forget(user_id)
 
 
 @router.delete("/memories/{user_id}/threads/{thread_id}", response_model=ForgetReport)
-def forget_thread(user_id: str, thread_id: str, agent: AgentDep) -> ForgetReport:
+def forget_thread(user_id: str, thread_id: str, agent: AgentDep, subject: UserDep) -> ForgetReport:
     """Erase one conversation and anything learned from it."""
+    require_owner(subject, user_id)
     return agent.forget_conversation(user_id, thread_id)
 
 
 @router.delete("/memories/{user_id}/{memory_id}")
-def forget_memory(user_id: str, memory_id: str, agent: AgentDep) -> dict[str, Any]:
+def forget_memory(
+    user_id: str, memory_id: str, agent: AgentDep, subject: UserDep
+) -> dict[str, Any]:
     """Delete a single memory."""
     from engram.memory.forget import forget_memory as delete_one
 
+    require_owner(subject, user_id)
     if not delete_one(agent.store, user_id, memory_id):
         raise HTTPException(status_code=404, detail="no such memory")
     return {"user_id": user_id, "memory_id": memory_id, "deleted": True}

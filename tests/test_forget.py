@@ -87,9 +87,9 @@ def test_forget_one_conversation_takes_its_transcript_and_its_memories(
 
     assert report.threads_deleted == ["monday"]
     assert report.memories_deleted == 1
-    assert agent.history("monday") == []
+    assert agent.history("alice", "monday") == []
     # The other conversation is untouched.
-    assert agent.history("thursday") != []
+    assert agent.history("alice", "thursday") != []
     assert [m.attribute for m in agent.reader.all_memories("alice")] == ["team"]
 
 
@@ -113,8 +113,8 @@ def test_forget_me_removes_memories_quarantine_and_transcripts(
 
     assert agent.reader.all_memories("alice") == []
     assert agent.quarantined("alice") == []
-    assert agent.history("monday") == []
-    assert agent.history("thursday") == []
+    assert agent.history("alice", "monday") == []
+    assert agent.history("alice", "thursday") == []
     assert known_threads(backend.store, "alice") == []
 
 
@@ -149,7 +149,7 @@ def test_forget_me_leaves_other_users_alone(settings: Settings, backend: Backend
 
     assert agent.reader.all_memories("alice") == []
     assert len(agent.reader.all_memories("bob")) == 1
-    assert agent.history("t2") != []
+    assert agent.history("bob", "t2") != []
 
 
 def test_forget_me_on_an_unknown_user_is_a_no_op(backend: Backend) -> None:
@@ -189,3 +189,27 @@ def test_quarantine_survives_nothing(settings: Settings, backend: Backend) -> No
 
     forget_user(backend.store, backend.checkpointer, "alice")
     assert backend.store.search((QUARANTINE_NAMESPACE, "alice")) == []
+
+
+def test_legacy_threads_block_chat_history_and_delete_before_mutation(
+    settings: Settings, backend: Backend
+) -> None:
+    import pytest
+
+    from engram.threads import LegacyThreadError
+
+    agent = agent_for(settings, backend)
+    agent.chat("alice", "new", "I prefer pytest.")
+    # Old versions recorded only the public name and had globally shared checkpoints.
+    backend.store.put(("threads", "alice"), "old", {"thread_id": "old"}, index=False)
+    for operation in [
+        lambda: agent.chat("alice", "old", "A new turn"),
+        lambda: agent.history("alice", "old"),
+        lambda: agent.forget_conversation("alice", "old"),
+        lambda: agent.forget("alice"),
+    ]:
+        with pytest.raises(LegacyThreadError, match="operator migration"):
+            operation()
+    assert len(agent.reader.all_memories("alice")) == 1
+    assert agent.history("alice", "new")
+    assert known_threads(backend.store, "alice") == ["new", "old"]

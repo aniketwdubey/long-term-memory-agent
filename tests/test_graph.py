@@ -21,7 +21,7 @@ def test_recalls_a_fact_in_a_later_session(agent: Agent) -> None:
 def test_a_new_thread_starts_with_no_transcript(agent: Agent) -> None:
     """Proves the recall above came from long-term memory, not the transcript."""
     agent.chat("alice", "monday", "I prefer pytest.")
-    assert agent.history("thursday") == []
+    assert agent.history("alice", "thursday") == []
 
 
 def test_stateless_arm_cannot_recall_anything(settings: Settings, backend: Backend) -> None:
@@ -65,14 +65,14 @@ def test_thread_memory_persists_across_turns(agent: Agent) -> None:
     agent.chat("alice", "t1", "first message")
     agent.chat("alice", "t1", "second message")
 
-    history = agent.history("t1")
+    history = agent.history("alice", "t1")
     assert len(history) == 4  # two human turns, two agent replies
     assert history[0].startswith("human: first message")
     assert history[2].startswith("human: second message")
 
 
 def test_history_of_an_unknown_thread_is_empty(agent: Agent) -> None:
-    assert agent.history("never-used") == []
+    assert agent.history("alice", "never-used") == []
 
 
 def test_memory_arm_requires_a_reader(settings: Settings, backend: Backend) -> None:
@@ -113,3 +113,23 @@ def test_manager_resolves_a_contradiction_the_naive_writer_would_keep(
     retired = [m for m in manager.reader.all_memories("managed-user") if not m.is_active()]
     assert [m.value for m in retired] == ["payments"]
     assert retired[0].superseded_by == live[0].id
+
+
+@pytest.mark.parametrize("memory", [True, False])
+def test_same_thread_name_is_isolated_and_forgettable_in_both_arms(
+    settings: Settings, backend: Backend, memory: bool
+) -> None:
+    agent = Agent(settings, checkpointer=backend.checkpointer, store=backend.store, memory=memory)
+    agent.chat("alice", "default", "ALICE_ONLY")
+    agent.chat("bob", "default", "BOB_ONLY")
+    assert "ALICE_ONLY" not in str(agent.history("bob", "default"))
+    agent.forget("alice")
+    assert agent.history("alice", "default") == []
+    assert "BOB_ONLY" in str(agent.history("bob", "default"))
+
+
+def test_identifier_separators_cannot_merge_conversations(agent: Agent) -> None:
+    agent.chat("alice:team", "daily", "FIRST_ONLY")
+    agent.chat("alice", "team:daily", "SECOND_ONLY")
+    assert "FIRST_ONLY" not in str(agent.history("alice", "team:daily"))
+    assert "SECOND_ONLY" not in str(agent.history("alice:team", "daily"))

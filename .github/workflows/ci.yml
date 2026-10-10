@@ -6,6 +6,23 @@ on:
   pull_request:
 
 jobs:
+  infrastructure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install CDK dependencies
+        run: |
+          python -m venv infra/.venv
+          infra/.venv/bin/pip install -r infra/requirements.txt
+      - name: Check infrastructure template
+        run: make -C infra test
+
   check:
     runs-on: ubuntu-latest
     steps:
@@ -32,7 +49,7 @@ jobs:
         run: .venv/bin/pytest
 
       # The regression gate. Floors sit just under the current deterministic
-      # numbers (decision-relevant 0.80, conflict 0.43, precision 0.88), so a
+      # numbers (decision-relevant 0.90, conflict 0.714, precision 0.879), so a
       # prompt or policy change that degrades the write path fails the build
       # rather than merging quietly.
       - name: Benchmark

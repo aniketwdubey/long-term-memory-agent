@@ -27,8 +27,11 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     environment:
+      ENGRAM_AUTH_MODE: ${ENGRAM_AUTH_MODE:-disabled}
+      ENGRAM_COGNITO_USER_POOL_ID: ${ENGRAM_COGNITO_USER_POOL_ID:-}
+      ENGRAM_COGNITO_CLIENT_ID: ${ENGRAM_COGNITO_CLIENT_ID:-}
       ENGRAM_STORE_BACKEND: postgres
       ENGRAM_POSTGRES_DSN: postgresql://engram:engram@postgres:5432/engram
       ENGRAM_CHAT_PROVIDER: ${ENGRAM_CHAT_PROVIDER:-stub}

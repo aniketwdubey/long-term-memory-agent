@@ -8,11 +8,12 @@ override individual fields.
 
 from __future__ import annotations
 
+import re
 from functools import lru_cache
 from typing import Literal
 from urllib.parse import quote_plus
 
-from pydantic import Field
+from pydantic import Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ChatProvider = Literal["stub", "bedrock"]
@@ -33,6 +34,21 @@ class Settings(BaseSettings):
         extra="ignore",
         frozen=True,
     )
+
+    # Authentication is required unless a local demo explicitly opts out.
+    auth_mode: Literal["cognito", "disabled"] = "cognito"
+    cognito_user_pool_id: str = ""
+    cognito_client_id: str = ""
+
+    @model_validator(mode="after")
+    def validate_cognito_identifiers(self) -> Settings:
+        # An unconfigured CLI/demo remains usable offline. API startup checks
+        # that both IDs are supplied when Cognito authentication is selected.
+        if self.cognito_user_pool_id and not re.fullmatch(
+            r"[a-z0-9-]+_[A-Za-z0-9]+", self.cognito_user_pool_id
+        ):
+            raise ValueError("Invalid Cognito user pool ID")
+        return self
 
     # --- Chat model --------------------------------------------------------
     # `stub` is a deterministic offline model (see engram.models). It is the

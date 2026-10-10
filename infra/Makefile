@@ -1,4 +1,4 @@
-.PHONY: install synth diff bootstrap deploy destroy outputs
+.PHONY: install test synth diff bootstrap deploy destroy outputs
 
 VENV := .venv
 PY   := $(VENV)/bin/python
@@ -9,6 +9,9 @@ install:  ## Create the infra venv
 	python3 -m venv $(VENV)
 	$(VENV)/bin/pip install -U pip
 	$(VENV)/bin/pip install -r requirements.txt
+
+test:  ## Offline CDK template assertions (no AWS credentials needed)
+	$(PY) -m unittest discover -s tests -v
 
 synth:  ## Render the CloudFormation template (no AWS calls beyond lookups)
 	. $(VENV)/bin/activate && $(CDK) synth

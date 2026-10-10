@@ -21,6 +21,7 @@ def client() -> Iterator[TestClient]:
         embedder="hashing",
         store_backend="memory",
         memory_writer="manager",
+        auth_mode="disabled",
     )
     with TestClient(create_app(settings)) as c:
         yield c
@@ -87,6 +88,51 @@ def test_a_thread_transcript_can_be_read_back(client: TestClient) -> None:
     assert any("Neovim" in line for line in body["history"])
 
 
+@pytest.mark.parametrize("thread", [None, "shared"])
+def test_users_can_reuse_a_thread_name_without_sharing_transcripts(
+    client: TestClient, thread: str | None
+) -> None:
+    for user, message in [("alice", "ALICE_PRIVATE"), ("bob", "BOB_PRIVATE")]:
+        payload = {"user_id": user, "message": message}
+        if thread is not None:
+            payload["thread_id"] = thread
+        assert client.post("/v1/chat", json=payload).status_code == 200
+
+    name = thread or "default"
+    alice = client.get(f"/v1/memories/alice/history/{name}").json()["history"]
+    bob = client.get(f"/v1/memories/bob/history/{name}").json()["history"]
+    assert len(alice) == len(bob) == 2
+    assert "ALICE_PRIVATE" in str(alice) and "BOB_PRIVATE" not in str(alice)
+    assert "BOB_PRIVATE" in str(bob) and "ALICE_PRIVATE" not in str(bob)
+
+
+def test_history_for_another_users_thread_is_empty(client: TestClient) -> None:
+    client.post("/v1/chat", json={"user_id": "alice", "message": "ALICE_PRIVATE"})
+    assert client.get("/v1/memories/bob/history/default").json()["history"] == []
+
+
+@pytest.mark.parametrize("suffix", ["", "/threads/default"])
+def test_deletion_preserves_another_users_same_named_thread(
+    client: TestClient, suffix: str
+) -> None:
+    for user in ["alice", "bob"]:
+        client.post("/v1/chat", json={"user_id": user, "message": f"Hello from {user}."})
+    alice_before = client.get("/v1/memories/alice/history/default").json()["history"]
+
+    assert client.delete(f"/v1/memories/bob{suffix}").status_code == 200
+
+    assert client.get("/v1/memories/bob/history/default").json()["history"] == []
+    assert client.get("/v1/memories/alice/history/default").json()["history"] == alice_before
+
+
+def test_deleting_an_unowned_thread_preserves_its_transcript(client: TestClient) -> None:
+    client.post("/v1/chat", json={"user_id": "alice", "message": "ALICE_PRIVATE"})
+    client.delete("/v1/memories/bob/threads/default")
+    assert "ALICE_PRIVATE" in str(
+        client.get("/v1/memories/alice/history/default").json()["history"]
+    )
+
+
 # --- the gate, over HTTP -----------------------------------------------------
 
 
@@ -109,13 +155,14 @@ def test_a_poisoned_document_cannot_be_recalled_afterwards(client: TestClient) -
     assert "administrator" not in reply.lower()
 
 
-def test_trusted_content_still_writes(client: TestClient) -> None:
-    """The gate must not be a wall."""
-    body = client.post(
+@pytest.mark.parametrize("source", ["user", "agent"])
+def test_observed_content_cannot_claim_trusted_provenance(client: TestClient, source: str) -> None:
+    response = client.post(
         "/v1/observe",
-        json={"user_id": "alice", "text": "I prefer pytest.", "source": "user"},
-    ).json()
-    assert [d["op"] for d in body["decisions"]] == ["write"]
+        json={"user_id": "alice", "text": "I prefer pytest.", "source": source},
+    )
+    assert response.status_code == 422
+    assert client.get("/v1/memories/alice").json()["total"] == 0
 
 
 # --- deletion ----------------------------------------------------------------
@@ -165,3 +212,10 @@ def test_forgetting_an_unknown_memory_is_a_404(client: TestClient) -> None:
 
 def test_an_empty_message_is_rejected(client: TestClient) -> None:
     assert client.post("/v1/chat", json={"user_id": "alice", "message": ""}).status_code == 422
+
+
+def test_legacy_thread_returns_a_migration_conflict(client: TestClient) -> None:
+    client.app.state.agent.store.put(("threads", "alice"), "old", {"thread_id": "old"}, index=False)
+    response = client.get("/v1/memories/alice/history/old")
+    assert response.status_code == 409
+    assert "operator migration" in response.json()["detail"]

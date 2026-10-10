@@ -31,10 +31,9 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from engram.memory.gate import QUARANTINE_NAMESPACE
 from engram.schemas import MEMORY_NAMESPACE, Memory, utcnow
+from engram.threads import THREAD_INDEX_NAMESPACE, checkpoint_thread_id
 
 log = structlog.get_logger(__name__)
-
-THREAD_INDEX_NAMESPACE = "threads"
 
 _PAGE = 200
 
@@ -75,10 +74,11 @@ def record_thread(store: BaseStore, user_id: str, thread_id: str) -> None:
 
     Idempotent, and the only reason a complete delete is possible at all.
     """
+    checkpoint_id = checkpoint_thread_id(store, user_id, thread_id)
     store.put(
         (THREAD_INDEX_NAMESPACE, user_id),
         thread_id,
-        {"thread_id": thread_id, "last_seen": utcnow().isoformat()},
+        {"thread_id": thread_id, "checkpoint_id": checkpoint_id, "last_seen": utcnow().isoformat()},
         index=False,
     )
 
@@ -105,13 +105,14 @@ def forget_thread(
     thread_id: str,
 ) -> ForgetReport:
     """Delete one conversation: its transcript and anything learned from it."""
+    checkpoint_id = checkpoint_thread_id(store, user_id, thread_id)
     deleted = 0
     for key, value in _all_keys(store, (MEMORY_NAMESPACE, user_id)):
         if Memory.from_value(value).thread_id == thread_id:
             store.delete((MEMORY_NAMESPACE, user_id), key)
             deleted += 1
 
-    checkpointer.delete_thread(thread_id)
+    checkpointer.delete_thread(checkpoint_id)
     store.delete((THREAD_INDEX_NAMESPACE, user_id), thread_id)
 
     log.info("memory.forget.thread", user_id=user_id, thread_id=thread_id, memories=deleted)
@@ -129,6 +130,10 @@ def forget_user(
     where someone used to live, and "we only kept the outdated copy" is not a
     defence anyone would accept.
     """
+    # Validate every transcript before deleting anything. A legacy thread must
+    # not turn a complete-delete request into a silent partial deletion.
+    threads = known_threads(store, user_id)
+    checkpoint_ids = [checkpoint_thread_id(store, user_id, thread) for thread in threads]
     memories = _all_keys(store, (MEMORY_NAMESPACE, user_id))
     for key, _ in memories:
         store.delete((MEMORY_NAMESPACE, user_id), key)
@@ -137,9 +142,8 @@ def forget_user(
     for key, _ in quarantined:
         store.delete((QUARANTINE_NAMESPACE, user_id), key)
 
-    threads = known_threads(store, user_id)
-    for thread_id in threads:
-        checkpointer.delete_thread(thread_id)
+    for thread_id, checkpoint_id in zip(threads, checkpoint_ids, strict=True):
+        checkpointer.delete_thread(checkpoint_id)
         store.delete((THREAD_INDEX_NAMESPACE, user_id), thread_id)
 
     report = ForgetReport(

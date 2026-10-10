@@ -13,13 +13,16 @@ from contextlib import ExitStack, asynccontextmanager
 from typing import Any
 
 import structlog
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 
+from engram.api.auth import CognitoVerifier
 from engram.api.routes import router
 from engram.config import Settings, get_settings
 from engram.graph import Agent
 from engram.logging import configure_logging
 from engram.store import open_backend
+from engram.threads import LegacyThreadError
 from engram.tracing import configure_tracing
 
 log = structlog.get_logger(__name__)
@@ -28,6 +31,8 @@ log = structlog.get_logger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = getattr(app.state, "settings", None) or get_settings()
+    app.state.settings = settings
+    app.state.verifier = CognitoVerifier(settings) if settings.auth_mode == "cognito" else None
     configure_logging(settings)
     configure_tracing(settings)
 
@@ -60,6 +65,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     if settings is not None:
         app.state.settings = settings
+
+    @app.exception_handler(LegacyThreadError)
+    async def legacy_thread_error(request: Request, exc: LegacyThreadError) -> JSONResponse:
+        return JSONResponse(status_code=409, content={"detail": str(exc)})
 
     @app.get("/health")
     def health() -> dict[str, Any]:

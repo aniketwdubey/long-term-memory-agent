@@ -34,6 +34,7 @@ from engram.memory.write import MemoryDecision, MemoryWriter, NaiveMemoryWriter,
 from engram.models import build_chat_model
 from engram.prompts import build_system_prompt
 from engram.schemas import Memory, Provenance, Recall
+from engram.threads import checkpoint_thread_id
 from engram.tracing import set_attributes, span
 
 if TYPE_CHECKING:  # pragma: no cover - import-time typing only
@@ -222,16 +223,14 @@ class Agent:
     def chat(self, user_id: str, thread_id: str, message: str) -> TurnTrace:
         """Send one user message on one thread and return the reply plus trace.
 
-        ``thread_id`` selects the conversation (checkpointer); ``user_id``
-        selects the long-term memory (store). They are independent on purpose:
-        that separation is what makes a fact learned in one session available in
-        the next, which is the whole point of the system.
+        ``thread_id`` selects a conversation within ``user_id``. Checkpoints use
+        both identifiers, while long-term memory uses only the user, making
+        facts available across that user's sessions without sharing transcripts.
         """
-        if self.memory_enabled:
-            # The checkpointer is keyed by thread and knows nothing about users,
-            # so without this index there is no way to find — or delete — a
-            # given person's transcripts. See engram.memory.forget.
-            record_thread(self.store, user_id, thread_id)
+        checkpoint_id = checkpoint_thread_id(self.store, user_id, thread_id)
+        # The control arm also retains transcripts, so it needs the same index
+        # for deletion even when long-term memory is disabled.
+        record_thread(self.store, user_id, thread_id)
 
         result = self._graph.invoke(
             {
@@ -242,7 +241,7 @@ class Agent:
                 "written": [],
                 "decisions": [],
             },
-            config={"configurable": {"thread_id": thread_id}},
+            config={"configurable": {"thread_id": checkpoint_id}},
         )
 
         reply = ""
@@ -299,13 +298,14 @@ class Agent:
         """Erase one conversation and anything learned from it."""
         return forget_thread(self.store, self.checkpointer, user_id, thread_id)
 
-    def history(self, thread_id: str) -> list[str]:
+    def history(self, user_id: str, thread_id: str) -> list[str]:
         """The persisted transcript of a thread, oldest first.
 
         Reads straight from the checkpointer, so it survives process restarts —
         this is what demonstrates thread memory is real rather than in-process.
         """
-        state = self._graph.get_state({"configurable": {"thread_id": thread_id}})
+        checkpoint_id = checkpoint_thread_id(self.store, user_id, thread_id)
+        state = self._graph.get_state({"configurable": {"thread_id": checkpoint_id}})
         if not state or not state.values:
             return []
         return [

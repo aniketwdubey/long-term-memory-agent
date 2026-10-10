@@ -96,9 +96,9 @@ def main() -> int:
 
         act(3, "Thread memory is durable, and separate from long-term memory")
         print(f"  {DIM}transcript of 'monday', read back from the checkpointer:{RESET}")
-        for line in agent.history("monday")[:4]:
+        for line in agent.history(USER, "monday")[:4]:
             print(f"    {DIM}{line[:92]}{RESET}")
-        verdict(len(agent.history("monday")) >= 2, "the earlier thread persisted")
+        verdict(len(agent.history(USER, "monday")) >= 2, "the earlier thread persisted")
 
         act(4, "The user repeats themselves")
         before = len(agent.reader.all_memories(USER))
@@ -183,7 +183,7 @@ def main() -> int:
         gone = (
             not agent.reader.all_memories(USER)
             and not agent.quarantined(USER)
-            and not agent.history("monday")
+            and not agent.history(USER, "monday")
         )
         verdict(gone, "memories, quarantine and transcripts are all gone, nothing retired")
 

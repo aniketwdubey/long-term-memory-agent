@@ -111,4 +111,7 @@ def test_thread_transcripts_survive_a_new_connection(pg_settings: Settings) -> N
 
     with open_backend(pg_settings) as backend:
         agent = Agent(pg_settings, checkpointer=backend.checkpointer, store=backend.store)
-        assert any("remember this turn" in line for line in agent.history("persistent-thread"))
+        assert any(
+            "remember this turn" in line
+            for line in agent.history("durability-user", "persistent-thread")
+        )
