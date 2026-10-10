@@ -49,7 +49,8 @@ removed. No recurring backup policy is planned for the current project scope.
    the guard. On a separate 40-turn set, three nonfacts still became candidates.
    Collect a larger independent sample from actual use before a broad quality claim.
    A pre-push check also caught `diet=insulin` on a diabetes turn; the manager
-   now prevents that unsupported slot from replacing a dietary fact.
+   now prevents that unsupported slot from replacing a dietary fact. It also
+   stops a one-week `role=on call` rotation from replacing a job role.
 2. **False-premise questions:** add independent evaluation coverage and measure
    refusal behavior. LoCoMo adversarial accuracy remains 10.5% in the recorded run.
 3. **Evaluation gaps:** benchmark decay across time, expand live samples, and
@@ -70,10 +71,10 @@ commit, including the infrastructure and benchmark jobs. PostgreSQL durability, 
 recall, and end-to-end Cognito sign-in were verified against the deployment.
 These checks do not measure improved live extraction precision.
 
-The local extraction revision passed **358 tests (3 skipped)**, lint, strict
+The local extraction revision passed **359 tests (3 skipped)**, lint, strict
 typing, the offline benchmark gate, and the live Bedrock preflight. It has not
 been pushed or deployed. The saved live store result predates the targeted
-diet-slot check; the unchanged eight-case selection decisions are documented in
+slot checks; the unchanged eight-case input path is documented in
 the [extraction evaluation](extraction-evaluation.md).
 
 ## Where it fails

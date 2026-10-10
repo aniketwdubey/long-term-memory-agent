@@ -205,6 +205,20 @@ def test_a_misfiled_medication_cannot_supersede_the_users_diet(backend: Backend)
     assert next(x.value for x in active(backend) if x.attribute == "diet") == "vegetarian"
 
 
+def test_on_call_does_not_supersede_a_users_job_role(backend: Backend) -> None:
+    """A temporary on-call rotation is not a change of profession."""
+    m = manager(
+        backend,
+        [fact("Works as a staff engineer", "role", "staff engineer")],
+        [fact("On call this week", "role", "on call")],
+    )
+    m.apply("alice", "I'm a staff engineer.")
+    report = m.apply("alice", "I'm on call this week.")
+
+    assert not any(d.op is MemoryOp.SUPERSEDE for d in report.decisions)
+    assert next(x.value for x in active(backend) if x.attribute == "role") == "staff engineer"
+
+
 # --- conflict resolution -----------------------------------------------------
 
 

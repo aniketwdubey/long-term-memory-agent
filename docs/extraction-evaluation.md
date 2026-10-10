@@ -75,7 +75,10 @@ diabetes. The insulin candidate exposed a separate slot error: Nova called it
 `diet=insulin`. The memory manager now requires dietary evidence in the user's
 turn before a candidate may occupy the `diet` slot. Without that evidence, the
 fact remains unslotted and cannot retire a real dietary preference. This is a
-targeted safeguard, not a general proof of correct slot selection.
+targeted safeguard, not a general proof of correct slot selection. The final
+Bedrock preflight exposed a similar error, `role=on call` for a one-week
+rotation; that candidate is also kept unslotted so it cannot replace the user's
+actual job role.
 
 The open-vocabulary recall repair came after the saved eight-case end-to-end
 run. A deterministic comparison across all 214 user turns in that exact case
@@ -84,8 +87,10 @@ version and this revision. The saved store-level result therefore exercises
 the same turns through the same model path, though a fresh stochastic model run
 could still yield different numbers. The separate 40-turn set probes the new
 open-vocabulary path but does not measure its final store behavior.
-The diet-slot safeguard was added afterward and has a regression test; it was
-not part of either saved live store run.
+These two slot safeguards were added afterward and have regression tests; they
+were not part of either saved live store run. Neither `insulin` nor `on call`
+occurs in the eight selected benchmark cases, so those safeguards do not change
+that comparison's input path.
 
 Turn-level precision counts a positive turn as correct when **any** candidate
 contains its expected substring. Extra spurious candidates from the same turn

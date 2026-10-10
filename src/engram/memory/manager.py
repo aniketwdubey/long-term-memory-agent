@@ -67,6 +67,7 @@ _DIET_EVIDENCE = re.compile(
     r"pescatarian|keto|halal|kosher|gluten|meat|dairy)\b",
     re.IGNORECASE,
 )
+_ON_CALL_ROLE = re.compile(r"^on[- ]call(?:\s+(?:rotation|duty|shift))?$", re.IGNORECASE)
 
 
 def _cosine(a: list[float], b: list[float]) -> float:
@@ -240,15 +241,19 @@ class MemoryManager:
 
     @staticmethod
     def _verify_slot(candidate: CandidateFact, turn: str) -> CandidateFact:
-        """Prevent an unsupported diet slot from retiring a real dietary fact.
+        """Prevent unsupported slots from retiring unrelated real facts.
 
         A live model classified "takes insulin for diabetes" as ``diet=insulin``.
         Its text is worth retaining, but occupying the diet slot would supersede
         an unrelated fact such as "vegetarian". Keep the candidate unslotted
-        when the user's own words provide no dietary evidence.
+        when the user's own words provide no dietary evidence. Likewise, an
+        on-call rotation must not replace the user's job role.
         """
         if candidate.attribute == "diet" and not _DIET_EVIDENCE.search(turn):
             log.debug("memory.slot.rejected", attribute="diet", candidate=candidate.text)
+            return candidate.model_copy(update={"attribute": "", "value": ""})
+        if candidate.attribute == "role" and _ON_CALL_ROLE.fullmatch(candidate.value.strip()):
+            log.debug("memory.slot.rejected", attribute="role", candidate=candidate.text)
             return candidate.model_copy(update={"attribute": "", "value": ""})
         return candidate
 
