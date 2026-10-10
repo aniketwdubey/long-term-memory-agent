@@ -38,20 +38,20 @@ unauthenticated memory endpoint now returns HTTP 401 without a bearer token.
 
 ## Remaining work, in order
 
-1. **Operations:** decide when to remove the pre-reset recovery snapshot, and
-   add a repeatable database backup policy before storing non-demo user data.
-   The current database has zero automated backup retention. Keep the snapshot
-   until recovery is no longer needed.
-2. **Live extraction quality:** establish a larger held-out live sample, save
+Automated RDS backups remain disabled by design for this disposable demo. The
+pre-reset manual snapshot is a one-time recovery artifact; decide when it can be
+removed. No recurring backup policy is planned for the current project scope.
+
+1. **Live extraction quality:** establish a larger held-out live sample, save
    machine-readable results, and evaluate changes against both precision and
    recall. The recorded 31.6% precision remains unresolved; this patch does not
    claim a model-quality gain.
-3. **False-premise questions:** add independent evaluation coverage and measure
+2. **False-premise questions:** add independent evaluation coverage and measure
    refusal behavior. LoCoMo adversarial accuracy remains 10.5% in the recorded run.
-4. **Evaluation gaps:** benchmark decay across time, expand live samples, and
+3. **Evaluation gaps:** benchmark decay across time, expand live samples, and
    retain run metadata/results. GitHub Actions passed for deployed commit
    `0c3c494` on 2026-10-10.
-5. **Optional extensions:** AgentCore Memory comparison and an event-time field
+4. **Optional extensions:** AgentCore Memory comparison and an event-time field
    separate from embedded text. A browser login/client UI is not part of the
    current API/CLI project.
 
