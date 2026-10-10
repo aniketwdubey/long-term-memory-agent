@@ -48,9 +48,9 @@ unauthenticated memory endpoint now returns HTTP 401 without a bearer token.
    claim a model-quality gain.
 3. **False-premise questions:** add independent evaluation coverage and measure
    refusal behavior. LoCoMo adversarial accuracy remains 10.5% in the recorded run.
-4. **Evaluation gaps:** benchmark decay across time, expand live samples, retain
-   run metadata/results, and verify remote CI. Local checks do not prove that
-   GitHub Actions has run.
+4. **Evaluation gaps:** benchmark decay across time, expand live samples, and
+   retain run metadata/results. GitHub Actions passed for deployed commit
+   `0c3c494` on 2026-10-10.
 5. **Optional extensions:** AgentCore Memory comparison and an event-time field
    separate from embedded text. A browser login/client UI is not part of the
    current API/CLI project.
@@ -60,8 +60,9 @@ unauthenticated memory endpoint now returns HTTP 401 without a bearer token.
 Verified locally on 2026-10-10: **287 tests passed, 3 skipped**, lint and strict
 type checks passed, the eight-act demo passed, and the deterministic benchmark
 passed its CI thresholds. The three infrastructure template tests passed and the
-stack synthesized. Documentation file and anchor links were checked. Cognito tests use real RSA signatures and a local JWKS
-fixture. CDK template tests passed locally. PostgreSQL durability, live Bedrock
+stack synthesized. Documentation links were checked. Cognito tests use real RSA
+signatures and a local JWKS fixture. GitHub Actions passed for the deployed
+commit, including the infrastructure and benchmark jobs. PostgreSQL durability, live Bedrock
 recall, and end-to-end Cognito sign-in were verified against the deployment.
 These checks do not measure improved live extraction precision.
 
