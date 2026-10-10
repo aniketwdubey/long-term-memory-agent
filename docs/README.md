@@ -7,6 +7,7 @@ Start with the [project overview](../README.md), then choose a guide:
 3. [Authentication](authentication.md): separate Cognito accounts and API access.
 4. [Architecture and design](architecture.md): graph, memory policy, and design decisions.
 5. [Evaluation](evaluation.md): methods, reported results, and known limitations.
+6. [Live extraction evaluation](extraction-evaluation.md): labeled synthetic turns, saved results, and remaining false positives.
 
 [architecture.svg](architecture.svg) is the diagram used in the README.
 [.env.example](../.env.example), the [root Makefile](../Makefile), and the

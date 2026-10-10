@@ -7,7 +7,8 @@ contradictions, expires temporary facts, and quarantines untrusted sources.
 **Status:** the core agent, storage backends, API, tracing, evaluation harness,
 and AWS infrastructure are implemented. User-scoped conversations and Cognito
 API authorization were deployed and verified with two accounts on 2026-10-10.
-Live extraction precision remains the largest quality weakness. See
+A measured extraction improvement is ready for deployment review; its broader
+generalization still needs independent validation. See
 [project status and remaining work](docs/status.md).
 
 ## Quickstart
@@ -67,12 +68,14 @@ write policy, injection boundary, and deletion behavior.
 | Offline memory precision | 87.9% | Deterministic extractor fixture |
 | Semantic-embedding overall accuracy | 96.9% | Previously recorded, same 32 cases |
 | Live memory precision | 31.6% | Previously recorded Nova/Titan sample, 8 cases |
+| Live memory precision with revised selection | 81.1% | New Nova/Titan run on the same eight-case selection; local code, not yet deployed |
 | LoCoMo overall accuracy | 41.3% | Previously recorded live run, 300 questions |
 | LoCoMo adversarial accuracy | 10.5% | False-premise questions remain a weakness |
 
 The offline score does not predict live extraction quality. Provenance checks
 also do not establish whether a user's claim is true. See [evaluation methods,
-results, and caveats](docs/evaluation.md) and [remaining work](docs/status.md).
+results, and caveats](docs/evaluation.md), [the extraction study](docs/extraction-evaluation.md),
+and [remaining work](docs/status.md).
 
 ## Documentation
 

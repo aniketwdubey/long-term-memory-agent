@@ -1,0 +1,832 @@
+{
+  "schema_version": 1,
+  "cases_sha256": "bdabb0156ddc2f930da8997dac29a191fb8ca269e876c15c88a091b68337f74b",
+  "prompt_sha256": "41cc826d994b6509662894d579b87ea64eb2235733e8ea6c8451536c5715b5f5",
+  "model_id": "amazon.nova-lite-v1:0",
+  "aws_region": "us-east-1",
+  "summary": {
+    "development": {
+      "turns": 30,
+      "positive_turns": 15,
+      "negative_turns": 15,
+      "true_positive": 15,
+      "false_positive": 0,
+      "false_negative": 0,
+      "turn_precision": 1.0,
+      "positive_recall": 1.0,
+      "negative_rejection": 1.0
+    },
+    "holdout": {
+      "turns": 30,
+      "positive_turns": 15,
+      "negative_turns": 15,
+      "true_positive": 15,
+      "false_positive": 1,
+      "false_negative": 0,
+      "turn_precision": 0.9375,
+      "positive_recall": 1.0,
+      "negative_rejection": 0.9333
+    }
+  },
+  "cases": [
+    {
+      "id": "d01",
+      "split": "development",
+      "turn": "Morning! The coffee machine is broken again.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d02",
+      "split": "development",
+      "turn": "We finally shipped the new dashboard on Friday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d03",
+      "split": "development",
+      "turn": "Could you add pytest to this repository's CI?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d04",
+      "split": "development",
+      "turn": "My sister is visiting from Toronto next month.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d05",
+      "split": "development",
+      "turn": "I'm reviewing the migration plan.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d06",
+      "split": "development",
+      "turn": "John uses TypeScript for his frontend work.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d07",
+      "split": "development",
+      "turn": "Maybe I'll try Neovim one day.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d08",
+      "split": "development",
+      "turn": "The team had an incident last Friday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d09",
+      "split": "development",
+      "turn": "I'm going to grab lunch, back in twenty minutes.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d10",
+      "split": "development",
+      "turn": "Can you show me the SQL for this one query?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d11",
+      "split": "development",
+      "turn": "Someone booked the big meeting room all week.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d12",
+      "split": "development",
+      "turn": "The dashboard looked red on my phone yesterday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d13",
+      "split": "development",
+      "turn": "I need to book a dentist appointment.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d14",
+      "split": "development",
+      "turn": "The office Wi-Fi has been flaky all afternoon.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d15",
+      "split": "development",
+      "turn": "Are we using Postgres in production now?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "d16",
+      "split": "development",
+      "turn": "I prefer pytest for backend tests.",
+      "expected": "pytest",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User prefers pytest for backend tests.",
+          "attribute": "testing_framework",
+          "value": "pytest",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d17",
+      "split": "development",
+      "turn": "I'm a staff engineer on the payments team.",
+      "expected": "payments",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user is a staff engineer on the payments team.",
+          "attribute": "role",
+          "value": "staff engineer",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        },
+        {
+          "text": "The user is on the payments team.",
+          "attribute": "team",
+          "value": "payments",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d18",
+      "split": "development",
+      "turn": "I live in Lisbon.",
+      "expected": "Lisbon",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user lives in Lisbon.",
+          "attribute": "location",
+          "value": "Lisbon",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": 365
+        }
+      ]
+    },
+    {
+      "id": "d19",
+      "split": "development",
+      "turn": "I'm vegetarian.",
+      "expected": "vegetarian",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "I am vegetarian",
+          "attribute": "diet",
+          "value": "vegetarian",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d20",
+      "split": "development",
+      "turn": "Always show me the SQL before running it.",
+      "expected": "SQL",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Always show the SQL before running it.",
+          "attribute": "",
+          "value": "",
+          "scope": "",
+          "kind": "procedural",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d21",
+      "split": "development",
+      "turn": "We use Postgres in production.",
+      "expected": "Postgres",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "We use Postgres in production.",
+          "attribute": "database",
+          "value": "Postgres",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d22",
+      "split": "development",
+      "turn": "I switched to Zed as my editor.",
+      "expected": "Zed",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "They switched to Zed as their editor.",
+          "attribute": "editor",
+          "value": "Zed",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d23",
+      "split": "development",
+      "turn": "I'm colorblind, so avoid red and green chart colors.",
+      "expected": "colorblind",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "They are colorblind and should avoid red and green chart colors.",
+          "attribute": "accessibility",
+          "value": "",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d24",
+      "split": "development",
+      "turn": "My dog Biscuit is a beagle.",
+      "expected": "Biscuit",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Biscuit is a beagle.",
+          "attribute": "pet_name",
+          "value": "Biscuit",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d25",
+      "split": "development",
+      "turn": "Don't send me Slack notifications after 6pm.",
+      "expected": "6pm",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Do not send notifications after 6pm.",
+          "attribute": "communication_preference",
+          "value": "no notifications after 6pm",
+          "scope": "",
+          "kind": "procedural",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d26",
+      "split": "development",
+      "turn": "I write all frontend code in TypeScript.",
+      "expected": "TypeScript",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user writes all frontend code in TypeScript.",
+          "attribute": "web_framework",
+          "value": "TypeScript",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": 1
+        }
+      ]
+    },
+    {
+      "id": "d27",
+      "split": "development",
+      "turn": "We deploy our services using Terraform.",
+      "expected": "Terraform",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "They deploy their services using Terraform.",
+          "attribute": "deploy_tool",
+          "value": "Terraform",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d28",
+      "split": "development",
+      "turn": "I need captions because I'm hard of hearing.",
+      "expected": "captions",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user needs captions because they are hard of hearing.",
+          "attribute": "accessibility",
+          "value": "captions needed",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "d29",
+      "split": "development",
+      "turn": "I'm on call this week.",
+      "expected": "call",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User is on call this week.",
+          "attribute": "",
+          "value": "on call",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": 7
+        }
+      ]
+    },
+    {
+      "id": "d30",
+      "split": "development",
+      "turn": "I work in the CET timezone.",
+      "expected": "CET",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User works in the CET timezone.",
+          "attribute": "timezone",
+          "value": "CET",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h01",
+      "split": "holdout",
+      "turn": "The train was delayed again this morning.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h02",
+      "split": "holdout",
+      "turn": "We finished the quarterly planning meeting yesterday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h03",
+      "split": "holdout",
+      "turn": "Please write a test with Jest for this component.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h04",
+      "split": "holdout",
+      "turn": "My neighbour is renovating, so there's drilling all day.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h05",
+      "split": "holdout",
+      "turn": "I'm debugging a flaky test.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h06",
+      "split": "holdout",
+      "turn": "Maya is based in Berlin these days.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h07",
+      "split": "holdout",
+      "turn": "I might move to Singapore next year.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h08",
+      "split": "holdout",
+      "turn": "Our team shipped a hotfix last night.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h09",
+      "split": "holdout",
+      "turn": "I have to pick up a package after lunch.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h10",
+      "split": "holdout",
+      "turn": "Could you use Terraform for this deployment?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h11",
+      "split": "holdout",
+      "turn": "The conference talk went on much longer than expected.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h12",
+      "split": "holdout",
+      "turn": "I found a nice vegetarian restaurant yesterday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h13",
+      "split": "holdout",
+      "turn": "I should renew my passport soon.",
+      "expected": "",
+      "result": "false_positive",
+      "facts": [
+        {
+          "text": "User should renew their passport soon.",
+          "attribute": "passport_renew",
+          "value": "soon",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": 365
+        }
+      ]
+    },
+    {
+      "id": "h14",
+      "split": "holdout",
+      "turn": "My laptop fan has been loud since the update.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h15",
+      "split": "holdout",
+      "turn": "What editor did I tell you I use?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "h16",
+      "split": "holdout",
+      "turn": "For work I use Neovim every day.",
+      "expected": "Neovim",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "For work I use Neovim every day.",
+          "attribute": "editor",
+          "value": "Neovim",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h17",
+      "split": "holdout",
+      "turn": "I joined the platform team permanently.",
+      "expected": "platform",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "I joined the platform team permanently.",
+          "attribute": "team",
+          "value": "platform",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h18",
+      "split": "holdout",
+      "turn": "I relocated to Berlin last year.",
+      "expected": "Berlin",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User relocated to Berlin last year.",
+          "attribute": "location",
+          "value": "Berlin",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": 365
+        }
+      ]
+    },
+    {
+      "id": "h19",
+      "split": "holdout",
+      "turn": "I follow a vegan diet.",
+      "expected": "vegan",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user follows a vegan diet.",
+          "attribute": "diet",
+          "value": "vegan",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h20",
+      "split": "holdout",
+      "turn": "Never run a database migration without showing me the SQL first.",
+      "expected": "SQL",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Always show the SQL before running a database migration.",
+          "attribute": "",
+          "value": "show SQL first",
+          "scope": "",
+          "kind": "procedural",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h21",
+      "split": "holdout",
+      "turn": "Our backend runs on FastAPI.",
+      "expected": "FastAPI",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The backend runs on FastAPI.",
+          "attribute": "web_framework",
+          "value": "FastAPI",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h22",
+      "split": "holdout",
+      "turn": "I use VS Code as my editor.",
+      "expected": "VS Code",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User uses VS Code as their editor.",
+          "attribute": "editor",
+          "value": "VS Code",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h23",
+      "split": "holdout",
+      "turn": "Avoid red/green status indicators because I have red-green color blindness.",
+      "expected": "color",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Avoid red/green status indicators because I have red-green color blindness.",
+          "attribute": "accessibility",
+          "value": "red-green color blindness",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h24",
+      "split": "holdout",
+      "turn": "My cat Pixel is a tabby.",
+      "expected": "Pixel",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Pixel is a tabby cat.",
+          "attribute": "pet_name",
+          "value": "Pixel",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h25",
+      "split": "holdout",
+      "turn": "Please don't contact me outside working hours after 5pm.",
+      "expected": "5pm",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "They prefer not to be contacted outside of working hours after 5pm.",
+          "attribute": "communication_preference",
+          "value": "no contact after 5pm",
+          "scope": "",
+          "kind": "procedural",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h26",
+      "split": "holdout",
+      "turn": "I write frontend applications in Rust.",
+      "expected": "Rust",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "I write frontend applications in Rust.",
+          "attribute": "web_framework",
+          "value": "Rust",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h27",
+      "split": "holdout",
+      "turn": "We deploy with Pulumi.",
+      "expected": "Pulumi",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User deploys with Pulumi.",
+          "attribute": "deploy_tool",
+          "value": "Pulumi",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "h28",
+      "split": "holdout",
+      "turn": "I need high-contrast interfaces because of my low vision.",
+      "expected": "contrast",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user needs high-contrast interfaces because of their low vision.",
+          "attribute": "accessibility",
+          "value": "high-contrast interfaces",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": 1095
+        }
+      ]
+    },
+    {
+      "id": "h29",
+      "split": "holdout",
+      "turn": "I'm temporarily covering the support rotation this week.",
+      "expected": "support",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "I'm covering the support rotation this week",
+          "attribute": "",
+          "value": "",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": 7
+        }
+      ]
+    },
+    {
+      "id": "h30",
+      "split": "holdout",
+      "turn": "My timezone is Asia/Kolkata.",
+      "expected": "Asia/Kolkata",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User's timezone is Asia/Kolkata.",
+          "attribute": "timezone",
+          "value": "Asia/Kolkata",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": 1
+        }
+      ]
+    }
+  ]
+}

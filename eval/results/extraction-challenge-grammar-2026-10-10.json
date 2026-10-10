@@ -1,0 +1,293 @@
+{
+  "schema_version": 1,
+  "cases_sha256": "c49d9d78ee23365baa38b3991bc09471546d13b67f01da919c7cd940651dad68",
+  "prompt_sha256": "41cc826d994b6509662894d579b87ea64eb2235733e8ea6c8451536c5715b5f5",
+  "model_id": "amazon.nova-lite-v1:0",
+  "aws_region": "us-east-1",
+  "summary": {
+    "development": {
+      "turns": 10,
+      "positive_turns": 5,
+      "negative_turns": 5,
+      "true_positive": 5,
+      "false_positive": 0,
+      "false_negative": 0,
+      "turn_precision": 1.0,
+      "positive_recall": 1.0,
+      "negative_rejection": 1.0
+    },
+    "holdout": {
+      "turns": 10,
+      "positive_turns": 5,
+      "negative_turns": 5,
+      "true_positive": 5,
+      "false_positive": 0,
+      "false_negative": 0,
+      "turn_precision": 1.0,
+      "positive_recall": 1.0,
+      "negative_rejection": 1.0
+    }
+  },
+  "cases": [
+    {
+      "id": "c01",
+      "split": "development",
+      "turn": "That conference talk was better than expected.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c02",
+      "split": "development",
+      "turn": "Quick one before I log off.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c03",
+      "split": "development",
+      "turn": "Anyway, I should get back to it.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c04",
+      "split": "development",
+      "turn": "Did you see the standup notes yesterday?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c05",
+      "split": "development",
+      "turn": "We should probably clean up the old repository sometime.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c06",
+      "split": "holdout",
+      "turn": "My phone battery has been terrible since the update.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c07",
+      "split": "holdout",
+      "turn": "I signed up for a pottery class yesterday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c08",
+      "split": "holdout",
+      "turn": "Remind me to book a flight at some point.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c09",
+      "split": "holdout",
+      "turn": "The new hire starts next Monday.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c10",
+      "split": "holdout",
+      "turn": "I spent the weekend watching a movie.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "c11",
+      "split": "development",
+      "turn": "From now on I prefer async replies.",
+      "expected": "async",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user prefers async replies.",
+          "attribute": "communication_preference",
+          "value": "async",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c12",
+      "split": "development",
+      "turn": "My default editor is Helix.",
+      "expected": "Helix",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User's default editor is Helix.",
+          "attribute": "editor",
+          "value": "Helix",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c13",
+      "split": "development",
+      "turn": "We rely on pytest for our test suite.",
+      "expected": "pytest",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User relies on pytest for their test suite.",
+          "attribute": "testing_framework",
+          "value": "pytest",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c14",
+      "split": "development",
+      "turn": "I work remotely from Chennai.",
+      "expected": "Chennai",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user works remotely from Chennai.",
+          "attribute": "location",
+          "value": "Chennai",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c15",
+      "split": "development",
+      "turn": "Please always include alt text with images.",
+      "expected": "alt text",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Please always include alt text with images.",
+          "attribute": "communication_preference",
+          "value": "include alt text with images",
+          "scope": "",
+          "kind": "procedural",
+          "importance": 1.0,
+          "ttl_days": 365
+        }
+      ]
+    },
+    {
+      "id": "c16",
+      "split": "holdout",
+      "turn": "I stopped eating meat permanently.",
+      "expected": "meat",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user stopped eating meat permanently.",
+          "attribute": "diet",
+          "value": "vegetarian",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c17",
+      "split": "holdout",
+      "turn": "We migrated from Flask to FastAPI as our web framework.",
+      "expected": "FastAPI",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "We migrated from Flask to FastAPI as our web framework.",
+          "attribute": "web_framework",
+          "value": "FastAPI",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c18",
+      "split": "holdout",
+      "turn": "I use a screen reader for coding.",
+      "expected": "screen reader",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User uses a screen reader for coding.",
+          "attribute": "accessibility",
+          "value": "screen reader",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c19",
+      "split": "holdout",
+      "turn": "My manager is Maya.",
+      "expected": "Maya",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User has a manager named Maya",
+          "attribute": "manager",
+          "value": "Maya",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "c20",
+      "split": "holdout",
+      "turn": "My weekday schedule is 9 to 5 IST.",
+      "expected": "IST",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User's weekday schedule is 9 to 5 IST.",
+          "attribute": "working_hours",
+          "value": "9 to 5 IST",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": 365
+        }
+      ]
+    }
+  ]
+}

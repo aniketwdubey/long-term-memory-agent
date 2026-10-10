@@ -1,0 +1,345 @@
+{
+  "schema_version": 1,
+  "cases_sha256": "f2b8aadefb66d622fafb1ebdc69fe4cf0f10ce1cb7e6d531a99353c7ed3c11d7",
+  "prompt_sha256": "41cc826d994b6509662894d579b87ea64eb2235733e8ea6c8451536c5715b5f5",
+  "model_id": "amazon.nova-lite-v1:0",
+  "aws_region": "us-east-1",
+  "summary": {
+    "development": {
+      "turns": 12,
+      "positive_turns": 6,
+      "negative_turns": 6,
+      "true_positive": 6,
+      "false_positive": 0,
+      "false_negative": 0,
+      "turn_precision": 1.0,
+      "positive_recall": 1.0,
+      "negative_rejection": 1.0
+    },
+    "holdout": {
+      "turns": 12,
+      "positive_turns": 6,
+      "negative_turns": 6,
+      "true_positive": 6,
+      "false_positive": 0,
+      "false_negative": 0,
+      "turn_precision": 1.0,
+      "positive_recall": 1.0,
+      "negative_rejection": 1.0
+    }
+  },
+  "cases": [
+    {
+      "id": "g01",
+      "split": "development",
+      "turn": "I was late for standup today.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g02",
+      "split": "development",
+      "turn": "We had pizza at the team lunch.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g03",
+      "split": "development",
+      "turn": "My package arrived this morning.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g04",
+      "split": "development",
+      "turn": "I'll call you after lunch.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g05",
+      "split": "development",
+      "turn": "Could we switch to Rust for this experiment?",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g06",
+      "split": "development",
+      "turn": "The air conditioning was broken all week.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g07",
+      "split": "holdout",
+      "turn": "I need to check the logs once.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g08",
+      "split": "holdout",
+      "turn": "We deployed a hotfix at midnight.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g09",
+      "split": "holdout",
+      "turn": "My friend Ana moved to Berlin.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g10",
+      "split": "holdout",
+      "turn": "I'm considering switching to Zed.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g11",
+      "split": "holdout",
+      "turn": "I tried vegan food once.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g12",
+      "split": "holdout",
+      "turn": "Today I met the new designer.",
+      "expected": "",
+      "result": "correct",
+      "facts": []
+    },
+    {
+      "id": "g13",
+      "split": "development",
+      "turn": "I run a bakery in Mumbai.",
+      "expected": "Mumbai",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "I run a bakery in Mumbai.",
+          "attribute": "employer",
+          "value": "bakery",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g14",
+      "split": "development",
+      "turn": "I always use JUnit for Java tests.",
+      "expected": "JUnit",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "They always use JUnit for Java tests",
+          "attribute": "testing_framework",
+          "value": "JUnit",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g15",
+      "split": "development",
+      "turn": "We maintain our data in SQLite.",
+      "expected": "SQLite",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The team maintains their data in SQLite.",
+          "attribute": "database",
+          "value": "SQLite",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g16",
+      "split": "development",
+      "turn": "My primary language is Hindi.",
+      "expected": "Hindi",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User's primary language is Hindi.",
+          "attribute": "language",
+          "value": "Hindi",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g17",
+      "split": "development",
+      "turn": "Don't send me emails on weekends.",
+      "expected": "weekend",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Do not send me emails on weekends.",
+          "attribute": "communication_preference",
+          "value": "no weekends",
+          "scope": "",
+          "kind": "procedural",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g18",
+      "split": "development",
+      "turn": "I have a severe peanut allergy.",
+      "expected": "peanut",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user has a severe peanut allergy.",
+          "attribute": "allergy",
+          "value": "peanuts",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g19",
+      "split": "holdout",
+      "turn": "I moved permanently to Singapore.",
+      "expected": "Singapore",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User moved permanently to Singapore.",
+          "attribute": "location",
+          "value": "Singapore",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g20",
+      "split": "holdout",
+      "turn": "The editor I use is Emacs.",
+      "expected": "Emacs",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user uses Emacs as their editor.",
+          "attribute": "editor",
+          "value": "Emacs",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g21",
+      "split": "holdout",
+      "turn": "My name is Nisha.",
+      "expected": "Nisha",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "Nisha is a user of this system.",
+          "attribute": "",
+          "value": "",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.5,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g22",
+      "split": "holdout",
+      "turn": "I stopped drinking coffee for good.",
+      "expected": "coffee",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User has stopped drinking coffee.",
+          "attribute": "diet",
+          "value": "no coffee",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 1.0,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g23",
+      "split": "holdout",
+      "turn": "Please remember that I'm based in Pune.",
+      "expected": "Pune",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "User is based in Pune.",
+          "attribute": "location",
+          "value": "Pune",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.8,
+          "ttl_days": null
+        }
+      ]
+    },
+    {
+      "id": "g24",
+      "split": "holdout",
+      "turn": "Could you review this? I prefer concise replies.",
+      "expected": "concise",
+      "result": "correct",
+      "facts": [
+        {
+          "text": "The user prefers concise replies.",
+          "attribute": "communication_preference",
+          "value": "",
+          "scope": "",
+          "kind": "semantic",
+          "importance": 0.9,
+          "ttl_days": 365
+        }
+      ]
+    }
+  ]
+}

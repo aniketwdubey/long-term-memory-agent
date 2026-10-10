@@ -1,4 +1,4 @@
-.PHONY: help install lint test eval eval-semantic eval-live eval-baseline \
+.PHONY: help install lint test eval eval-semantic eval-live eval-baseline eval-extraction \
 	locomo locomo-live check-bedrock serve serve-demo trace-demo demo cdk-synth cdk-deploy cdk-destroy up down logs docker-demo clean
 
 # Prefer uv when it is installed; fall back to the stdlib venv otherwise.
@@ -37,6 +37,9 @@ eval-semantic:  ## Benchmark with real sentence embeddings (needs the embed extr
 eval-live:  ## Benchmark a balanced sample against real Bedrock (costs a little)
 	ENGRAM_LOG_LEVEL=ERROR $(PY) -m engram.eval.runner $(CASES) \
 		--provider bedrock --embedder bedrock --limit 2
+
+eval-extraction:  ## Score labeled synthetic turns against live Nova; save JSON
+	$(PY) scripts/eval_extraction.py --output eval/results/extraction-run.json
 
 eval-baseline:  ## Compare against mem0 on identical models (needs `make up` + baseline extra)
 	ENGRAM_LOG_LEVEL=ERROR $(PY) -m engram.eval.runner $(CASES) \

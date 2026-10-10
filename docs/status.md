@@ -10,7 +10,7 @@ accounts passed a live end-to-end acceptance test and were deleted afterward.
 
 | Area | Status |
 |---|---|
-| Recall, extraction, dedupe, supersession, TTL | Implemented; live extraction still needs improvement |
+| Recall, extraction, dedupe, supersession, TTL | Implemented; local extraction guard improved a small live sample, broader validation pending |
 | In-memory and Postgres/pgvector backends | Implemented; PostgreSQL durability checks are opt-in |
 | Injection gate and quarantine | Implemented; observed HTTP content cannot claim trusted provenance |
 | User/thread isolation and deletion | Deployed; verified with two live accounts and fresh PostgreSQL connections |
@@ -42,10 +42,11 @@ Automated RDS backups remain disabled by design for this disposable demo. The
 pre-reset manual snapshot is a one-time recovery artifact; decide when it can be
 removed. No recurring backup policy is planned for the current project scope.
 
-1. **Live extraction quality:** establish a larger held-out live sample, save
-   machine-readable results, and evaluate changes against both precision and
-   recall. The recorded 31.6% precision remains unresolved; this patch does not
-   claim a model-quality gain.
+1. **Live extraction quality:** the revised grammatical selection guard raised
+   store precision from 48.8% to 81.1% in two saved live runs on the same
+   eight-case selection, while labeled-fact recall rose from 69.6% to 76.8%.
+   The 104-turn synthetic suite is a regression corpus because its cases informed
+   the guard. Collect a larger independent sample before a broad quality claim.
 2. **False-premise questions:** add independent evaluation coverage and measure
    refusal behavior. LoCoMo adversarial accuracy remains 10.5% in the recorded run.
 3. **Evaluation gaps:** benchmark decay across time, expand live samples, and
@@ -72,7 +73,7 @@ Stated rather than buried.
 
 | Weakness | Detail |
 |---|---|
-| **Live extraction precision: 31.6%** | Against 87.9% offline. A real model extracts from turns the rule fixture ignores. Re-measured after prompt fixes and unchanged, so it is standing, not stale. **The single biggest thing to fix.** |
+| **Live extraction generalization** | The earlier live store result was 31.6% against 87.9% offline. The revised selection guard scored 81.1% on the same eight-case selection in a new run, but that sample is too small to establish production precision. See [the extraction study](extraction-evaluation.md). |
 | **The offline benchmark cannot see that** | CI runs the rule fixture, which holds extraction at a quality real models do not reach. The gate protects the *policy*, not the extractor. |
 | **Adversarial questions: 10.5% on LoCoMo** | The system refuses untrusted *sources* structurally, and fails to refuse false *premises*. Provenance is checked; plausibility is not. |
 | **Semantic retrieval misses** | "Build me a chart of weekly signups" does not retrieve "I'm colorblind, so avoid red/green pairings". This is the recorded fastembed result. The current hashing run misses the SQL-confirmation case instead; failure identity depends on the embedder. |

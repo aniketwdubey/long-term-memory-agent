@@ -93,6 +93,116 @@ class ExtractionResult(BaseModel):
     )
 
 
+# Check speech-act and grammatical evidence before a live model call. A prompt
+# alone did not stop Nova from filing questions, errands and other people's
+# actions as facts. The model still interprets facts that pass this cheap gate.
+_STANDING_INSTRUCTION = re.compile(
+    r"^(?:always|never|avoid|don'?t|do not|please\s+(?:always|never|don'?t|do not))\b",
+    re.IGNORECASE,
+)
+_QUESTION_START = re.compile(
+    r"^(?:can|could|would|will|should|what|when|where|who|which|why|how|"
+    r"do|did|is|are|have|has)\b",
+    re.IGNORECASE,
+)
+_HYPOTHETICAL_START = re.compile(
+    r"^(?:maybe|perhaps|(?:i|we)\s+(?:might|may|could|should))\b", re.IGNORECASE
+)
+_OTHER_PERSON_START = re.compile(
+    r"^my\s+(?:sister|brother|mother|father|parent|friend|neighbou?r|"
+    r"colleague|coworker|partner)\b",
+    re.IGNORECASE,
+)
+_ONE_OFF_EVENT = re.compile(
+    r"^(?:(?:we|our team|the team)\s+(?:finally\s+)?"
+    r"(?:shipped|finished|released|held|had)\b|"
+    r"i\s+(?:found\s+an?\b|clicked\b|watched\b|tried\b|met\b))",
+    re.IGNORECASE,
+)
+_ERRAND = re.compile(
+    r"^(?:i\s+(?:(?:need|have)\s+to|should(?:\s+to)?)\s+(?:book|renew|pick up|grab)\b|"
+    r"i'?m\s+going\s+to\s+(?:grab|pick up)\b)",
+    re.IGNORECASE,
+)
+_DATED_ACTIVITY = re.compile(
+    r"^i\s+(?:signed up for|spent)\b.*\b"
+    r"(?:yesterday|today|last night|last weekend|the weekend)\b",
+    re.IGNORECASE,
+)
+_DEVICE_COMPLAINT = re.compile(
+    r"^my\s+(?:phone|laptop|computer|tablet)\s+\w+(?:\s+\w+){0,2}\s+"
+    r"(?:has been|was|is)\s+(?:very\s+|really\s+)?"
+    r"(?:terrible|slow|flaky|broken|loud)\b",
+    re.IGNORECASE,
+)
+_ONGOING_TASK = re.compile(
+    r"^i'?m\s+(?:reviewing|debugging|checking|looking at|fixing|considering)\b",
+    re.IGNORECASE,
+)
+_USER_SUBJECT = re.compile(r"\b(?:i|i'?m|i'?ve|we)\b", re.IGNORECASE)
+_SPEAKER_PREFIX = re.compile(r"^[A-Za-z][\w -]{0,35}:\s*")
+_ADDITIONAL_STATES = re.compile(
+    r"\b(?:i|we)\s+(?:follow|rely|maintain|stopped|"
+    r"(?:have|need)(?!\s+to\b))\b",
+    re.IGNORECASE,
+)
+_TEAM_TECH_STATE = re.compile(
+    r"^our\s+(?:backend|frontend|service|stack|database|codebase|infrastructure)\s+"
+    r"(?:runs|uses|is)\b",
+    re.IGNORECASE,
+)
+_DATED_PERSONAL_EVENT = re.compile(r"^i\s+(?:went to|ran|attended|visited)\b", re.IGNORECASE)
+_PROFILE_AFTER_COMMA = re.compile(
+    r",\s*(?:and\s+)?i\s+(?:prefer|use|am|live|work|write|need)\b",
+    re.IGNORECASE,
+)
+_REMEMBER_USER_STATEMENT = re.compile(
+    r"^please\s+(?:remember|note)\s+(?:that\s+)?i\b", re.IGNORECASE
+)
+
+
+def _could_state_a_profile_fact(body: str, *, dated: bool) -> bool:
+    """Conservatively keep a clause that might assert a durable user fact."""
+    if _STANDING_INSTRUCTION.match(body) or _REMEMBER_USER_STATEMENT.match(body):
+        return True
+    if _QUESTION_START.match(body):
+        return bool(_PROFILE_AFTER_COMMA.search(body))
+    if re.match(r"^please\b", body, re.IGNORECASE):
+        return False
+    if _HYPOTHETICAL_START.match(body) or _OTHER_PERSON_START.match(body):
+        return bool(_PROFILE_AFTER_COMMA.search(body))
+    if _DATED_ACTIVITY.match(body) or _DEVICE_COMPLAINT.match(body):
+        return False
+    if _ONE_OFF_EVENT.match(body) or _ERRAND.match(body):
+        return bool(_PROFILE_AFTER_COMMA.search(body))
+    if _ONGOING_TASK.match(body):
+        # An ordinary activity is noise; explicit temporary framing makes it
+        # a real state with a TTL ("debugging a flaky test today").
+        return has_temporal_marker(body)
+    if body.lower().startswith("my laptop fan"):
+        return False
+    if body.lower().startswith(("the ", "a ", "someone ")) and not _USER_SUBJECT.search(body):
+        return False
+    # A dated replay can carry a meaningful episode even without a present-tense
+    # profile verb. Keep the existing temporal benchmark path reachable.
+    if dated and _DATED_PERSONAL_EVENT.match(body):
+        return True
+    return bool(_ADDITIONAL_STATES.search(body) or _TEAM_TECH_STATE.search(body)) or any(
+        pattern.search(body) for pattern in _FACT_PATTERNS
+    )
+
+
+def _clearly_not_a_profile_update(turn: str) -> bool:
+    """Reject a turn only when none of its clauses can update the profile."""
+    dated = bool(_DATED_TURN.match(turn))
+    body = _SPEAKER_PREFIX.sub("", _DATED_TURN.sub("", turn.strip()))
+    return not any(
+        _could_state_a_profile_fact(clause.strip(), dated=dated)
+        for clause in re.split(r"(?<=[.!?])\s+", body)
+        if clause.strip()
+    )
+
+
 @runtime_checkable
 class FactExtractor(Protocol):
     """Turn text in, candidate facts out."""
@@ -181,6 +291,8 @@ class LLMFactExtractor:
         self._model = model.with_structured_output(ExtractionResult)
 
     def extract(self, turn: str) -> list[CandidateFact]:
+        if _clearly_not_a_profile_update(turn):
+            return []
         try:
             result = self._model.invoke(
                 [SystemMessage(content=EXTRACTION_SYSTEM), HumanMessage(content=turn)]

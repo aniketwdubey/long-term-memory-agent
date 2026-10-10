@@ -1,0 +1,25 @@
+# A separate synthetic generalization set, created after the first challenge.
+{"id":"g01","split":"development","turn":"I was late for standup today.","expected":""}
+{"id":"g02","split":"development","turn":"We had pizza at the team lunch.","expected":""}
+{"id":"g03","split":"development","turn":"My package arrived this morning.","expected":""}
+{"id":"g04","split":"development","turn":"I'll call you after lunch.","expected":""}
+{"id":"g05","split":"development","turn":"Could we switch to Rust for this experiment?","expected":""}
+{"id":"g06","split":"development","turn":"The air conditioning was broken all week.","expected":""}
+{"id":"g07","split":"holdout","turn":"I need to check the logs once.","expected":""}
+{"id":"g08","split":"holdout","turn":"We deployed a hotfix at midnight.","expected":""}
+{"id":"g09","split":"holdout","turn":"My friend Ana moved to Berlin.","expected":""}
+{"id":"g10","split":"holdout","turn":"I'm considering switching to Zed.","expected":""}
+{"id":"g11","split":"holdout","turn":"I tried vegan food once.","expected":""}
+{"id":"g12","split":"holdout","turn":"Today I met the new designer.","expected":""}
+{"id":"g13","split":"development","turn":"I run a bakery in Mumbai.","expected":"Mumbai"}
+{"id":"g14","split":"development","turn":"I always use JUnit for Java tests.","expected":"JUnit"}
+{"id":"g15","split":"development","turn":"We maintain our data in SQLite.","expected":"SQLite"}
+{"id":"g16","split":"development","turn":"My primary language is Hindi.","expected":"Hindi"}
+{"id":"g17","split":"development","turn":"Don't send me emails on weekends.","expected":"weekend"}
+{"id":"g18","split":"development","turn":"I have a severe peanut allergy.","expected":"peanut"}
+{"id":"g19","split":"holdout","turn":"I moved permanently to Singapore.","expected":"Singapore"}
+{"id":"g20","split":"holdout","turn":"The editor I use is Emacs.","expected":"Emacs"}
+{"id":"g21","split":"holdout","turn":"My name is Nisha.","expected":"Nisha"}
+{"id":"g22","split":"holdout","turn":"I stopped drinking coffee for good.","expected":"coffee"}
+{"id":"g23","split":"holdout","turn":"Please remember that I'm based in Pune.","expected":"Pune"}
+{"id":"g24","split":"holdout","turn":"Could you review this? I prefer concise replies.","expected":"concise"}

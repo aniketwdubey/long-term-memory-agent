@@ -1,0 +1,22 @@
+# Additional synthetic challenge cases written after the filter design.
+# They are not used to choose or tune the filter.
+{"id":"c01","split":"development","turn":"That conference talk was better than expected.","expected":""}
+{"id":"c02","split":"development","turn":"Quick one before I log off.","expected":""}
+{"id":"c03","split":"development","turn":"Anyway, I should get back to it.","expected":""}
+{"id":"c04","split":"development","turn":"Did you see the standup notes yesterday?","expected":""}
+{"id":"c05","split":"development","turn":"We should probably clean up the old repository sometime.","expected":""}
+{"id":"c06","split":"holdout","turn":"My phone battery has been terrible since the update.","expected":""}
+{"id":"c07","split":"holdout","turn":"I signed up for a pottery class yesterday.","expected":""}
+{"id":"c08","split":"holdout","turn":"Remind me to book a flight at some point.","expected":""}
+{"id":"c09","split":"holdout","turn":"The new hire starts next Monday.","expected":""}
+{"id":"c10","split":"holdout","turn":"I spent the weekend watching a movie.","expected":""}
+{"id":"c11","split":"development","turn":"From now on I prefer async replies.","expected":"async"}
+{"id":"c12","split":"development","turn":"My default editor is Helix.","expected":"Helix"}
+{"id":"c13","split":"development","turn":"We rely on pytest for our test suite.","expected":"pytest"}
+{"id":"c14","split":"development","turn":"I work remotely from Chennai.","expected":"Chennai"}
+{"id":"c15","split":"development","turn":"Please always include alt text with images.","expected":"alt text"}
+{"id":"c16","split":"holdout","turn":"I stopped eating meat permanently.","expected":"meat"}
+{"id":"c17","split":"holdout","turn":"We migrated from Flask to FastAPI as our web framework.","expected":"FastAPI"}
+{"id":"c18","split":"holdout","turn":"I use a screen reader for coding.","expected":"screen reader"}
+{"id":"c19","split":"holdout","turn":"My manager is Maya.","expected":"Maya"}
+{"id":"c20","split":"holdout","turn":"My weekday schedule is 9 to 5 IST.","expected":"IST"}

@@ -96,8 +96,29 @@ Three honest caveats, because the headline reads better than the run deserves:
   instead of 7.8. The offline precision figure flatters the system by roughly
   2.7x, and the live one is the honest number. It did not improve when the
   extraction prompt was tightened (28.7% before those fixes, 31.6% after, inside
-  the noise at this sample size), so it is a standing weakness rather than a
-  tuning oversight.
+  the noise at this sample size). At that point it was a standing weakness,
+  rather than an issue solved by wording the prompt more tightly.
+
+### Re-measured extraction, 2026-10-10
+
+The earlier 31.6% result motivated a separate labeled extraction study; see
+[methods and saved per-turn outputs](extraction-evaluation.md). The new
+grammatical selection guard was also run on the same balanced eight-case
+end-to-end selection using Nova Lite and Titan:
+
+| Metric | Earlier guard, new run | Grammar guard, new run |
+|---|---:|---:|
+| Answer accuracy | 75.0% | **100.0%** |
+| Memory-store precision | 48.8% | **81.1%** |
+| Labeled-fact recall | 69.6% | **76.8%** |
+| Memories stored per user | 10.0 | **6.6** |
+| Injection resistance | 100.0% | 100.0% |
+
+Both runs used eight cases, so single-case flips are large. The older 31.6%
+result was also eight cases but not a paired saved run. These numbers support
+the guard on this selection; they do not establish its precision on arbitrary
+conversation traffic. The grammar guard is local at the time of this report
+and has not yet been deployed.
 
 ---
 

@@ -187,7 +187,7 @@ def test_llm_extractor_returns_the_models_facts() -> None:
 def test_llm_extractor_accepts_a_plain_dict() -> None:
     """Some providers hand back a dict rather than the model instance."""
     extractor = LLMFactExtractor(_FakeModel(payload={"facts": [{"text": "Lives in Berlin"}]}))
-    assert [f.text for f in extractor.extract("...")] == ["Lives in Berlin"]
+    assert [f.text for f in extractor.extract("I live in Berlin.")] == ["Lives in Berlin"]
 
 
 def test_a_failed_extraction_never_breaks_the_conversation() -> None:
@@ -198,6 +198,76 @@ def test_a_failed_extraction_never_breaks_the_conversation() -> None:
     """
     extractor = LLMFactExtractor(_FakeModel(payload=RuntimeError("bedrock is down")))
     assert extractor.extract("I prefer pytest") == []
+
+
+@pytest.mark.parametrize(
+    "turn",
+    [
+        "Could you add pytest to this repository's CI?",
+        "Which team am I on again?",
+        "Please write a test with Jest for this component.",
+        "John uses TypeScript for his frontend work.",
+        "My sister is visiting from Toronto next month.",
+        "We finally shipped the dashboard on Friday.",
+        "I need to book a dentist appointment.",
+        "I should renew my passport soon.",
+        "I'm reviewing the migration plan.",
+        "I might move to Singapore next year.",
+        "The dashboard looked red on my phone yesterday.",
+        "We should probably clean up the old repository sometime.",
+        "My phone battery has been terrible since the update.",
+        "I signed up for a pottery class yesterday.",
+        "I spent the weekend watching a movie.",
+        "We had pizza at the team lunch.",
+        "My package arrived this morning.",
+        "I need to check the logs once.",
+        "I'm considering switching to Zed.",
+        "I tried vegan food once.",
+        "Today I met the new designer.",
+    ],
+)
+def test_live_extractor_does_not_ask_a_model_to_turn_chatter_into_profile_facts(
+    turn: str,
+) -> None:
+    candidate = CandidateFact(text="An invented profile fact")
+    extractor = LLMFactExtractor(_FakeModel(payload=ExtractionResult(facts=[candidate])))
+    assert extractor.extract(turn) == []
+
+
+@pytest.mark.parametrize(
+    "turn",
+    [
+        "I prefer pytest for backend tests.",
+        "We use Postgres in production.",
+        "I moved to Berlin last year.",
+        "I follow a vegan diet.",
+        "Our backend runs on FastAPI.",
+        "Avoid red/green status indicators because I have red-green color blindness.",
+        "I need high-contrast interfaces because of my low vision.",
+        "We rely on pytest for our test suite.",
+        "I stopped eating meat permanently.",
+        "We maintain our data in SQLite.",
+        "I have a severe peanut allergy.",
+        "My dog Biscuit is a beagle.",
+        "Always show me the SQL before running it.",
+        "Please don't contact me after 5pm.",
+        "I'm on call this week.",
+        "I'm debugging a flaky test today.",
+        "[7 May 2023] Caroline: I joined the platform team.",
+        "Please remember that I prefer pytest.",
+        "Could you draft the test? I prefer pytest.",
+        "We shipped the dashboard. I prefer pytest.",
+        "We shipped the dashboard, and I prefer pytest.",
+        "[7 May 2023] Caroline: I went to the support group yesterday.",
+        "My phone is an iPhone 15.",
+        "I joined the platform team last week.",
+        "I moved to Berlin last year.",
+    ],
+)
+def test_live_extractor_keeps_explicit_profile_updates(turn: str) -> None:
+    candidate = CandidateFact(text="A usable profile fact")
+    extractor = LLMFactExtractor(_FakeModel(payload=ExtractionResult(facts=[candidate])))
+    assert extractor.extract(turn) == [candidate]
 
 
 # --- wiring ------------------------------------------------------------------

@@ -1,0 +1,62 @@
+# Synthetic profile-extraction cases. `expected` is a required fact substring;
+# empty means the turn should produce no facts. Keep holdout cases out of prompt tuning.
+{"id":"d01","split":"development","turn":"Morning! The coffee machine is broken again.","expected":""}
+{"id":"d02","split":"development","turn":"We finally shipped the new dashboard on Friday.","expected":""}
+{"id":"d03","split":"development","turn":"Could you add pytest to this repository's CI?","expected":""}
+{"id":"d04","split":"development","turn":"My sister is visiting from Toronto next month.","expected":""}
+{"id":"d05","split":"development","turn":"I'm reviewing the migration plan.","expected":""}
+{"id":"d06","split":"development","turn":"John uses TypeScript for his frontend work.","expected":""}
+{"id":"d07","split":"development","turn":"Maybe I'll try Neovim one day.","expected":""}
+{"id":"d08","split":"development","turn":"The team had an incident last Friday.","expected":""}
+{"id":"d09","split":"development","turn":"I'm going to grab lunch, back in twenty minutes.","expected":""}
+{"id":"d10","split":"development","turn":"Can you show me the SQL for this one query?","expected":""}
+{"id":"d11","split":"development","turn":"Someone booked the big meeting room all week.","expected":""}
+{"id":"d12","split":"development","turn":"The dashboard looked red on my phone yesterday.","expected":""}
+{"id":"d13","split":"development","turn":"I need to book a dentist appointment.","expected":""}
+{"id":"d14","split":"development","turn":"The office Wi-Fi has been flaky all afternoon.","expected":""}
+{"id":"d15","split":"development","turn":"Are we using Postgres in production now?","expected":""}
+{"id":"d16","split":"development","turn":"I prefer pytest for backend tests.","expected":"pytest"}
+{"id":"d17","split":"development","turn":"I'm a staff engineer on the payments team.","expected":"payments"}
+{"id":"d18","split":"development","turn":"I live in Lisbon.","expected":"Lisbon"}
+{"id":"d19","split":"development","turn":"I'm vegetarian.","expected":"vegetarian"}
+{"id":"d20","split":"development","turn":"Always show me the SQL before running it.","expected":"SQL"}
+{"id":"d21","split":"development","turn":"We use Postgres in production.","expected":"Postgres"}
+{"id":"d22","split":"development","turn":"I switched to Zed as my editor.","expected":"Zed"}
+{"id":"d23","split":"development","turn":"I'm colorblind, so avoid red and green chart colors.","expected":"colorblind"}
+{"id":"d24","split":"development","turn":"My dog Biscuit is a beagle.","expected":"Biscuit"}
+{"id":"d25","split":"development","turn":"Don't send me Slack notifications after 6pm.","expected":"6pm"}
+{"id":"d26","split":"development","turn":"I write all frontend code in TypeScript.","expected":"TypeScript"}
+{"id":"d27","split":"development","turn":"We deploy our services using Terraform.","expected":"Terraform"}
+{"id":"d28","split":"development","turn":"I need captions because I'm hard of hearing.","expected":"captions"}
+{"id":"d29","split":"development","turn":"I'm on call this week.","expected":"call"}
+{"id":"d30","split":"development","turn":"I work in the CET timezone.","expected":"CET"}
+{"id":"h01","split":"holdout","turn":"The train was delayed again this morning.","expected":""}
+{"id":"h02","split":"holdout","turn":"We finished the quarterly planning meeting yesterday.","expected":""}
+{"id":"h03","split":"holdout","turn":"Please write a test with Jest for this component.","expected":""}
+{"id":"h04","split":"holdout","turn":"My neighbour is renovating, so there's drilling all day.","expected":""}
+{"id":"h05","split":"holdout","turn":"I'm debugging a flaky test.","expected":""}
+{"id":"h06","split":"holdout","turn":"Maya is based in Berlin these days.","expected":""}
+{"id":"h07","split":"holdout","turn":"I might move to Singapore next year.","expected":""}
+{"id":"h08","split":"holdout","turn":"Our team shipped a hotfix last night.","expected":""}
+{"id":"h09","split":"holdout","turn":"I have to pick up a package after lunch.","expected":""}
+{"id":"h10","split":"holdout","turn":"Could you use Terraform for this deployment?","expected":""}
+{"id":"h11","split":"holdout","turn":"The conference talk went on much longer than expected.","expected":""}
+{"id":"h12","split":"holdout","turn":"I found a nice vegetarian restaurant yesterday.","expected":""}
+{"id":"h13","split":"holdout","turn":"I should renew my passport soon.","expected":""}
+{"id":"h14","split":"holdout","turn":"My laptop fan has been loud since the update.","expected":""}
+{"id":"h15","split":"holdout","turn":"What editor did I tell you I use?","expected":""}
+{"id":"h16","split":"holdout","turn":"For work I use Neovim every day.","expected":"Neovim"}
+{"id":"h17","split":"holdout","turn":"I joined the platform team permanently.","expected":"platform"}
+{"id":"h18","split":"holdout","turn":"I relocated to Berlin last year.","expected":"Berlin"}
+{"id":"h19","split":"holdout","turn":"I follow a vegan diet.","expected":"vegan"}
+{"id":"h20","split":"holdout","turn":"Never run a database migration without showing me the SQL first.","expected":"SQL"}
+{"id":"h21","split":"holdout","turn":"Our backend runs on FastAPI.","expected":"FastAPI"}
+{"id":"h22","split":"holdout","turn":"I use VS Code as my editor.","expected":"VS Code"}
+{"id":"h23","split":"holdout","turn":"Avoid red/green status indicators because I have red-green color blindness.","expected":"color"}
+{"id":"h24","split":"holdout","turn":"My cat Pixel is a tabby.","expected":"Pixel"}
+{"id":"h25","split":"holdout","turn":"Please don't contact me outside working hours after 5pm.","expected":"5pm"}
+{"id":"h26","split":"holdout","turn":"I write frontend applications in Rust.","expected":"Rust"}
+{"id":"h27","split":"holdout","turn":"We deploy with Pulumi.","expected":"Pulumi"}
+{"id":"h28","split":"holdout","turn":"I need high-contrast interfaces because of my low vision.","expected":"contrast"}
+{"id":"h29","split":"holdout","turn":"I'm temporarily covering the support rotation this week.","expected":"support"}
+{"id":"h30","split":"holdout","turn":"My timezone is Asia/Kolkata.","expected":"Asia/Kolkata"}
