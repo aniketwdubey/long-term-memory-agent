@@ -53,6 +53,19 @@ your memory list is empty.
 The pool, client and endpoint defaults match the current deployment;
 `--pool-id`, `--client-id` and `--api-url` can override them after a redeploy.
 
+To chat with the deployed agent after sign-in:
+
+```bash
+.venv/bin/python scripts/try_auth.py --chat --thread first-session
+```
+
+Enter messages at `You>`. The helper prints Engram's reply, memories recalled
+for that turn, and memories saved after it. Type `/memories` to inspect stored
+facts, `/thread second-session` to start a separate conversation with the same
+long-term memory, or `/quit` to exit. If the five-minute access token expires,
+rerun the command and sign in again. Chat turns call the live Bedrock model and
+can create persistent memories in the deployed database.
+
 The stack enables email sign-up and verification, a 12-character minimum
 password with all four character types, optional authenticator-app MFA, and SRP
 sign-in. The public app client has no secret. Its access/ID tokens last five
