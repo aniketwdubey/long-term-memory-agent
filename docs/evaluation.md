@@ -120,8 +120,8 @@ the guard on this selection; they do not establish its precision on arbitrary
 conversation traffic. The probe score detects expected/forbidden substrings,
 not factual grounding of the entire reply. A saved passing answer invented a
 named restaurant and details about it, so the 100% figure is not general
-answer quality. The grammar guard is local at the time of this report and has
-not yet been deployed.
+answer quality. The grammar guard was deployed on 2026-10-11. The saved scores are
+pre-deployment synthetic evaluations, not a measurement of live user traffic.
 
 ---
 

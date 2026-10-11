@@ -88,7 +88,9 @@ the same turns through the same model path, though a fresh stochastic model run
 could still yield different numbers. The separate 40-turn set probes the new
 open-vocabulary path but does not measure its final store behavior.
 These two slot safeguards were added afterward and have regression tests; they
-were not part of either saved live store run. Neither `insulin` nor `on call`
+were not part of either saved live store run. After the 2026-10-11 rollout, a
+one-off task using the deployed image verified chatter rejection, Hindi recall,
+and the insulin/diet safeguard against live Nova. Neither `insulin` nor `on call`
 occurs in the eight selected benchmark cases, so those safeguards do not change
 that comparison's input path.
 

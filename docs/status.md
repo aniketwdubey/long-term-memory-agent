@@ -10,7 +10,7 @@ accounts passed a live end-to-end acceptance test and were deleted afterward.
 
 | Area | Status |
 |---|---|
-| Recall, extraction, dedupe, supersession, TTL | Implemented; local extraction guard improved a small live sample, broader validation pending |
+| Recall, extraction, dedupe, supersession, TTL | Implemented; extraction guard deployed 2026-10-11, broader validation pending |
 | In-memory and Postgres/pgvector backends | Implemented; PostgreSQL durability checks are opt-in |
 | Injection gate and quarantine | Implemented; observed HTTP content cannot claim trusted provenance |
 | User/thread isolation and deletion | Deployed; verified with two live accounts and fresh PostgreSQL connections |
@@ -71,11 +71,15 @@ commit, including the infrastructure and benchmark jobs. PostgreSQL durability, 
 recall, and end-to-end Cognito sign-in were verified against the deployment.
 These checks do not measure improved live extraction precision.
 
-The local extraction revision passed **359 tests (3 skipped)**, lint, strict
-typing, the offline benchmark gate, and the live Bedrock preflight. It has not
-been pushed or deployed. The saved live store result predates the targeted
-slot checks; the unchanged eight-case input path is documented in
-the [extraction evaluation](extraction-evaluation.md).
+The extraction revision passed **359 tests (3 skipped)**, lint, strict
+typing, the offline benchmark gate, and the live Bedrock preflight before
+deployment. GitHub Actions passed for commit `d8b68c8` on 2026-10-11. The AWS
+stack update completed with one healthy task; `/health` returned 200 and an
+anonymous memory request returned 401. A one-off task on the deployed image
+confirmed the Nova extractor ignored chatter, retained an unfamiliar durable
+fact, and kept a medication fact out of the diet slot. The saved live store
+result predates the targeted slot checks; the unchanged eight-case input path
+is documented in the [extraction evaluation](extraction-evaluation.md).
 
 ## Where it fails
 
