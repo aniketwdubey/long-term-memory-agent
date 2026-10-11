@@ -42,21 +42,24 @@ and run its guided command:
 make auth-demo
 ```
 
-Enter your email and a new password when prompted. Cognito emails a confirmation
-code to that address; enter it at the next prompt. The helper then signs in with
-SRP and calls `GET /v1/memories/{your-user-id}` using the access token. For an existing
-confirmed account, enter its email/password; the helper signs in. It does not
-print or save the password or token. Sign-up creates a real Cognito account and
-the read-only API call should return HTTP 200, even if your memory list is empty.
+Enter your email and a new password of at least 12 characters, including
+uppercase and lowercase letters, a number, and a symbol. Cognito emails a
+confirmation code to that address; enter it at the next prompt. The helper then
+signs in with SRP and calls `GET /v1/memories/{your-user-id}` using the access
+token. For an existing confirmed account, enter its email/password; the helper
+signs in. It does not print or save the password or token. Sign-up creates a
+real Cognito account. The read-only API call should return HTTP 200, even if
+your memory list is empty.
 The pool, client and endpoint defaults match the current deployment;
 `--pool-id`, `--client-id` and `--api-url` can override them after a redeploy.
 
 The stack enables email sign-up and verification, a 12-character minimum
-password, optional authenticator-app MFA, and SRP sign-in. The public app client
-has no secret. Its access/ID tokens last five minutes; refresh tokens last seven
-days with rotation and revocation enabled. The stack outputs `UserPoolId` and
-`UserPoolClientId` for a client application to consume. The 2026-10-10 deployment
-verified SRP sign-in and refresh-token rotation with two temporary accounts.
+password with all four character types, optional authenticator-app MFA, and SRP
+sign-in. The public app client has no secret. Its access/ID tokens last five
+minutes; refresh tokens last seven days with rotation and revocation enabled.
+The stack outputs `UserPoolId` and `UserPoolClientId` for a client application
+to consume. The 2026-10-10 deployment verified SRP sign-in and refresh-token
+rotation with two temporary accounts.
 
 Use Cognito's client SDK (for example Amplify Auth) to sign up, confirm the email
 code, sign in with SRP, and refresh the session. The project currently provides

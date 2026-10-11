@@ -58,7 +58,7 @@ def main() -> int:
     if not email or "@" not in email:
         print("Enter a valid email address.")
         return 1
-    password = getpass.getpass("Password (hidden): ")
+    password = getpass.getpass("Password (12+ chars, upper/lower, number, symbol; hidden): ")
     client = boto3.client("cognito-idp", region_name=args.pool_id.split("_", 1)[0])
 
     try:
@@ -74,6 +74,9 @@ def main() -> int:
         print("Email confirmed.")
     except client.exceptions.UsernameExistsException:
         print("Account already exists; signing in with your password.")
+    except client.exceptions.InvalidPasswordException:
+        print("Use at least 12 characters with uppercase, lowercase, a number, and a symbol.")
+        return 1
     except ClientError as exc:
         print(f"Cognito error: {exc.response['Error']['Code']}")
         return 1
