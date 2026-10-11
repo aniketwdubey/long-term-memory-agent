@@ -62,14 +62,15 @@ To chat with the deployed agent after sign-in:
 Enter messages at `You>`. The helper prints Engram's reply, memories recalled
 for that turn, and memories saved after it. Type `/memories` to inspect stored
 facts, `/thread second-session` to start a separate conversation with the same
-long-term memory, or `/quit` to exit. If the five-minute access token expires,
+long-term memory, or `/quit` to exit. If the one-hour access token expires,
 rerun the command and sign in again. Chat turns call the live Bedrock model and
 can create persistent memories in the deployed database.
 
 The stack enables email sign-up and verification, a 12-character minimum
 password with all four character types, optional authenticator-app MFA, and SRP
-sign-in. The public app client has no secret. Its access/ID tokens last five
-minutes; refresh tokens last seven days with rotation and revocation enabled.
+sign-in. The public app client has no secret. Access tokens last one hour, ID
+tokens last five minutes, and refresh tokens last seven days with rotation and
+revocation enabled.
 The stack outputs `UserPoolId` and `UserPoolClientId` for a client application
 to consume. The 2026-10-10 deployment verified SRP sign-in and refresh-token
 rotation with two temporary accounts.
@@ -111,6 +112,6 @@ transcripts can contain mixed-user content; see the
 [upgrade procedure](operations.md#upgrading-existing-data).
 
 Offline JWT verification cannot detect revocation before token expiry. An
-already-issued access token can remain usable for up to five minutes after
+already-issued access token can remain usable for up to one hour after
 sign-out. Account deletion in Cognito and `DELETE /v1/memories/{user_id}` are
 separate operations: the latter deletes application data, not the login account.

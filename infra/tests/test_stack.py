@@ -46,14 +46,14 @@ class AuthenticationStackTests(unittest.TestCase):
             },
         )
 
-    def test_public_client_uses_srp_rotation_and_short_access_tokens(self) -> None:
+    def test_public_client_uses_srp_rotation_and_one_hour_access_tokens(self) -> None:
         self.template.has_resource_properties(
             "AWS::Cognito::UserPoolClient",
             {
                 "GenerateSecret": False,
                 "ExplicitAuthFlows": ["ALLOW_USER_SRP_AUTH"],
                 "EnableTokenRevocation": True,
-                "AccessTokenValidity": 5,
+                "AccessTokenValidity": 60,
                 "TokenValidityUnits": Match.object_like({"AccessToken": "minutes"}),
                 "RefreshTokenRotation": {"Feature": "ENABLED", "RetryGracePeriodSeconds": 10},
             },

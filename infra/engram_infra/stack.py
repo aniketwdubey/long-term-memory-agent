@@ -124,7 +124,7 @@ class EngramStack(cdk.Stack):
             disable_o_auth=True,
             prevent_user_existence_errors=True,
             enable_token_revocation=True,
-            access_token_validity=cdk.Duration.minutes(5),
+            access_token_validity=cdk.Duration.hours(1),
             id_token_validity=cdk.Duration.minutes(5),
             refresh_token_validity=cdk.Duration.days(7),
             refresh_token_rotation_grace_period=cdk.Duration.seconds(10),
