@@ -19,6 +19,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+auth-demo = [
+    "pycognito>=2024.5,<2027",
+]
 # Local semantic embeddings (ONNX, no torch). Optional so CI stays tiny and
 # offline: the deterministic `hashing` embedder is the default everywhere.
 embed = [

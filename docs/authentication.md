@@ -34,6 +34,23 @@ serve HTTP and remain usable offline.
 
 ## Sign-up and sign-in
 
+To try the deployed flow from this checkout, install the optional helper once
+and run its guided command:
+
+```bash
+.venv/bin/pip install -e ".[auth-demo]"
+make auth-demo
+```
+
+Enter your email and a new password when prompted. Cognito emails a confirmation
+code to that address; enter it at the next prompt. The helper then signs in with
+SRP and calls `GET /v1/memories/{your-user-id}` using the access token. For an existing
+confirmed account, enter its email/password; the helper signs in. It does not
+print or save the password or token. Sign-up creates a real Cognito account and
+the read-only API call should return HTTP 200, even if your memory list is empty.
+The pool, client and endpoint defaults match the current deployment;
+`--pool-id`, `--client-id` and `--api-url` can override them after a redeploy.
+
 The stack enables email sign-up and verification, a 12-character minimum
 password, optional authenticator-app MFA, and SRP sign-in. The public app client
 has no secret. Its access/ID tokens last five minutes; refresh tokens last seven

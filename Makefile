@@ -1,4 +1,4 @@
-.PHONY: help install lint test eval eval-semantic eval-live eval-baseline eval-extraction \
+.PHONY: help install lint test eval eval-semantic eval-live eval-baseline eval-extraction auth-demo \
 	locomo locomo-live check-bedrock serve serve-demo trace-demo demo cdk-synth cdk-deploy cdk-destroy up down logs docker-demo clean
 
 # Prefer uv when it is installed; fall back to the stdlib venv otherwise.
@@ -61,6 +61,9 @@ serve:  ## Run the HTTP API on :8000 (docs at /docs)
 
 serve-demo:  ## Local loopback API with authentication explicitly disabled
 	ENGRAM_AUTH_MODE=disabled $(MAKE) serve
+
+auth-demo:  ## Sign up/sign in with Cognito and read your deployed memories
+	$(PY) scripts/try_auth.py
 
 trace-demo:  ## Print OpenTelemetry spans for a couple of turns
 	ENGRAM_OTEL_EXPORTER=console ENGRAM_LOG_LEVEL=ERROR $(PY) scripts/demo.py
