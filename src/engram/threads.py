@@ -26,6 +26,6 @@ def checkpoint_thread_id(store: BaseStore, user_id: str, thread_id: str) -> str:
     if entry is not None and entry.value.get("checkpoint_id") != key:
         raise LegacyThreadError(
             "This user has a legacy conversation requiring operator migration; "
-            "see docs/operations.md#upgrading-existing-data."
+            "see README.md#upgrading-existing-data."
         )
     return key
